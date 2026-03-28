@@ -1,0 +1,2 @@
+[console_scripts]
+server = task_scheduler.server.app:main
