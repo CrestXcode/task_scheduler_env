@@ -1,255 +1,171 @@
 ---
-title: Task Scheduler Environment Server
-emoji: 🥅
-colorFrom: red
-colorTo: pink
+title: Task Scheduler Env
+emoji: 📋
+colorFrom: blue
+colorTo: purple
 sdk: docker
 pinned: false
 app_port: 8000
-base_path: /web
 tags:
   - openenv
+  - reinforcement-learning
+  - productivity
+  - scheduling
 ---
 
 # Task Scheduler Environment
 
-A simple test environment that echoes back messages. Perfect for testing the env APIs as well as demonstrating environment usage patterns.
+A real-world productivity RL environment where an AI agent learns to prioritise and complete workplace tasks before their deadlines.
+
+Built with [OpenEnv](https://github.com/meta-pytorch/OpenEnv) — the open-source framework by Meta & Hugging Face for standardised RL environments.
+
+## Overview
+
+The agent receives a board of workplace tasks, each with a name, priority level, effort requirement, and deadline. At each step, the agent picks one task to work on. The environment rewards smart prioritisation and penalises missed deadlines.
+
+**3 difficulty levels:**
+- **Easy** — 5 tasks, generous deadlines, effort=1 each
+- **Medium** — 8 tasks, tighter deadlines, varying effort (1-3 steps)
+- **Hard** — 10 tasks, tight deadlines, urgent task injected at step 3
 
 ## Quick Start
 
-The simplest way to use the Task Scheduler environment is through the `TaskSchedulerEnv` class:
-
 ```python
-from task_scheduler import TaskSchedulerAction, TaskSchedulerEnv
+from openenv.core import GenericEnvClient
 
-try:
-    # Create environment from Docker image
-    task_schedulerenv = TaskSchedulerEnv.from_docker_image("task_scheduler-env:latest")
-
-    # Reset
-    result = task_schedulerenv.reset()
-    print(f"Reset: {result.observation.echoed_message}")
-
-    # Send multiple messages
-    messages = ["Hello, World!", "Testing echo", "Final message"]
-
-    for msg in messages:
-        result = task_schedulerenv.step(TaskSchedulerAction(message=msg))
-        print(f"Sent: '{msg}'")
-        print(f"  → Echoed: '{result.observation.echoed_message}'")
-        print(f"  → Length: {result.observation.message_length}")
-        print(f"  → Reward: {result.reward}")
-
-finally:
-    # Always clean up
-    task_schedulerenv.close()
-```
-
-That's it! The `TaskSchedulerEnv.from_docker_image()` method handles:
-- Starting the Docker container
-- Waiting for the server to be ready
-- Connecting to the environment
-- Container cleanup when you call `close()`
-
-## Building the Docker Image
-
-Before using the environment, you need to build the Docker image:
-
-```bash
-# From project root
-docker build -t task_scheduler-env:latest -f server/Dockerfile .
-```
-
-## Deploying to Hugging Face Spaces
-
-You can easily deploy your OpenEnv environment to Hugging Face Spaces using the `openenv push` command:
-
-```bash
-# From the environment directory (where openenv.yaml is located)
-openenv push
-
-# Or specify options
-openenv push --namespace my-org --private
-```
-
-The `openenv push` command will:
-1. Validate that the directory is an OpenEnv environment (checks for `openenv.yaml`)
-2. Prepare a custom build for Hugging Face Docker space (enables web interface)
-3. Upload to Hugging Face (ensuring you're logged in)
-
-### Prerequisites
-
-- Authenticate with Hugging Face: The command will prompt for login if not already authenticated
-
-### Options
-
-- `--directory`, `-d`: Directory containing the OpenEnv environment (defaults to current directory)
-- `--repo-id`, `-r`: Repository ID in format 'username/repo-name' (defaults to 'username/env-name' from openenv.yaml)
-- `--base-image`, `-b`: Base Docker image to use (overrides Dockerfile FROM)
-- `--private`: Deploy the space as private (default: public)
-
-### Examples
-
-```bash
-# Push to your personal namespace (defaults to username/env-name from openenv.yaml)
-openenv push
-
-# Push to a specific repository
-openenv push --repo-id my-org/my-env
-
-# Push with a custom base image
-openenv push --base-image ghcr.io/meta-pytorch/openenv-base:latest
-
-# Push as a private space
-openenv push --private
-
-# Combine options
-openenv push --repo-id my-org/my-env --base-image custom-base:latest --private
-```
-
-After deployment, your space will be available at:
-`https://huggingface.co/spaces/<repo-id>`
-
-The deployed space includes:
-- **Web Interface** at `/web` - Interactive UI for exploring the environment
-- **API Documentation** at `/docs` - Full OpenAPI/Swagger interface
-- **Health Check** at `/health` - Container health monitoring
-- **WebSocket** at `/ws` - Persistent session endpoint for low-latency interactions
-
-## Environment Details
-
-### Action
-**TaskSchedulerAction**: Contains a single field
-- `message` (str) - The message to echo back
-
-### Observation
-**TaskSchedulerObservation**: Contains the echo response and metadata
-- `echoed_message` (str) - The message echoed back
-- `message_length` (int) - Length of the message
-- `reward` (float) - Reward based on message length (length × 0.1)
-- `done` (bool) - Always False for echo environment
-- `metadata` (dict) - Additional info like step count
-
-### Reward
-The reward is calculated as: `message_length × 0.1`
-- "Hi" → reward: 0.2
-- "Hello, World!" → reward: 1.3
-- Empty message → reward: 0.0
-
-## Advanced Usage
-
-### Connecting to an Existing Server
-
-If you already have a Task Scheduler environment server running, you can connect directly:
-
-```python
-from task_scheduler import TaskSchedulerEnv
-
-# Connect to existing server
-task_schedulerenv = TaskSchedulerEnv(base_url="<ENV_HTTP_URL_HERE>")
-
-# Use as normal
-result = task_schedulerenv.reset()
-result = task_schedulerenv.step(TaskSchedulerAction(message="Hello!"))
-```
-
-Note: When connecting to an existing server, `task_schedulerenv.close()` will NOT stop the server.
-
-### Using the Context Manager
-
-The client supports context manager usage for automatic connection management:
-
-```python
-from task_scheduler import TaskSchedulerAction, TaskSchedulerEnv
-
-# Connect with context manager (auto-connects and closes)
-with TaskSchedulerEnv(base_url="http://localhost:8000") as env:
+with GenericEnvClient(base_url="https://kashish014-task-scheduler-env.hf.space").sync() as env:
     result = env.reset()
-    print(f"Reset: {result.observation.echoed_message}")
-    # Multiple steps with low latency
-    for msg in ["Hello", "World", "!"]:
-        result = env.step(TaskSchedulerAction(message=msg))
-        print(f"Echoed: {result.observation.echoed_message}")
+    print(result.observation)
+
+    result = env.step({"task_id": 0})
+    print(result.observation)
+    print(result.reward)
 ```
 
-The client uses WebSocket connections for:
-- **Lower latency**: No HTTP connection overhead per request
-- **Persistent session**: Server maintains your environment state
-- **Efficient for episodes**: Better for many sequential steps
-
-### Concurrent WebSocket Sessions
-
-The server supports multiple concurrent WebSocket connections. To enable this,
-modify `server/app.py` to use factory mode:
+## Action Space
 
 ```python
-# In server/app.py - use factory mode for concurrent sessions
-app = create_app(
-    TaskSchedulerEnvironment,  # Pass class, not instance
-    TaskSchedulerAction,
-    TaskSchedulerObservation,
-    max_concurrent_envs=4,  # Allow 4 concurrent sessions
-)
+class TaskSchedulerAction(Action):
+    task_id: int  # ID of the task to work on this step
 ```
 
-Then multiple clients can connect simultaneously:
+## Observation Space
 
 ```python
-from task_scheduler import TaskSchedulerAction, TaskSchedulerEnv
-from concurrent.futures import ThreadPoolExecutor
-
-def run_episode(client_id: int):
-    with TaskSchedulerEnv(base_url="http://localhost:8000") as env:
-        result = env.reset()
-        for i in range(10):
-            result = env.step(TaskSchedulerAction(message=f"Client {client_id}, step {i}"))
-        return client_id, result.observation.message_length
-
-# Run 4 episodes concurrently
-with ThreadPoolExecutor(max_workers=4) as executor:
-    results = list(executor.map(run_episode, range(4)))
+class TaskSchedulerObservation(Observation):
+    done: bool                  # Is the episode over?
+    reward: Optional[float]     # Reward this step
+    current_step: int           # Current time step
+    tasks: List[dict]           # All tasks and their status
+    message: str                # Feedback message
+    score: float                # Running score 0.0-1.0
 ```
 
-## Development & Testing
-
-### Direct Environment Testing
-
-Test the environment logic directly without starting the HTTP server:
-
-```bash
-# From the server directory
-python3 server/task_scheduler_environment.py
+Each task in the list looks like:
+```json
+{
+    "task_id": 0,
+    "name": "Reply to emails",
+    "priority": "high",
+    "effort": 1,
+    "deadline": 4,
+    "completed": false
+}
 ```
 
-This verifies that:
-- Environment resets correctly
-- Step executes actions properly
-- State tracking works
-- Rewards are calculated correctly
+## Tasks
 
-### Running Locally
+### Easy — 5 tasks, generous deadlines
+All tasks have effort=1 (complete in one step). Deadlines are generous.
+Agent must learn to prioritise high priority tasks first.
 
-Run the server locally for development:
+### Medium — 8 tasks, tighter deadlines
+Tasks have varying effort (1-3 steps). Deadlines are tighter.
+Agent must balance effort vs deadline vs priority.
+
+### Hard — 10 tasks + urgent injection
+Starts with 10 tasks. At step 3, an urgent high-priority task is injected
+with a short deadline. Agent must dynamically reprioritise.
+
+## Reward Function
+
+| Event | Reward |
+|---|---|
+| Complete task on time | +1.0 |
+| Progress on task (partial) | +0.1 per step |
+| Working on high priority task | +0.1 bonus |
+| Complete task late | +0.3 |
+| Miss deadline | -0.3 |
+| Ignore urgent task (deadline ≤ 2 steps) | -0.1 per step |
+| Invalid task_id | -0.2 |
+
+Final score = tasks completed / total tasks (0.0 to 1.0)
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/reset` | POST | Start new episode |
+| `/step` | POST | Take an action |
+| `/state` | GET | Get current state |
+| `/tasks` | GET | List all tasks + action schema |
+| `/grader` | GET | Grader info and criteria |
+| `/baseline` | POST | Run baseline inference |
+| `/health` | GET | Health check |
+| `/docs` | GET | API documentation |
+
+## Baseline Results
+
+Run with Groq LLaMA 3.1 8B Instant as the agent:
+
+| Difficulty | Score |
+|---|---|
+| Easy | 1.0 |
+| Medium | 1.0 |
+| Hard | 1.0 |
+
+## Setup & Local Development
+
+### Requirements
+- Python 3.10+
+- Docker
+- openenv-core
+
+### Run locally
 
 ```bash
-uvicorn server.app:app --reload
+git clone https://github.com/CrestXCode/task_scheduler_env
+cd task_scheduler_env
+pip install openenv-core
+uv run server
+```
+
+### Run with Docker
+
+```bash
+docker build -t task-scheduler-env -f server/Dockerfile .
+docker run -p 8000:8000 -e GROQ_API_KEY=your_key task-scheduler-env
 ```
 
 ## Project Structure
 
 ```
 task_scheduler/
-├── .dockerignore         # Docker build exclusions
-├── __init__.py            # Module exports
-├── README.md              # This file
-├── openenv.yaml           # OpenEnv manifest
-├── pyproject.toml         # Project metadata and dependencies
-├── uv.lock                # Locked dependencies (generated)
-├── client.py              # TaskSchedulerEnv client
-├── models.py              # Action and Observation models
+├── models.py                          # Pydantic Action, Observation types
+├── client.py                          # TaskSchedulerEnv client
+├── baseline.py                        # Baseline inference script
+├── openenv.yaml                       # OpenEnv manifest
+├── README.md                          # This file
 └── server/
-    ├── __init__.py        # Server module exports
-    ├── task_scheduler_environment.py  # Core environment logic
-    ├── app.py             # FastAPI application (HTTP + WebSocket endpoints)
-    └── Dockerfile         # Container image definition
+    ├── task_scheduler_environment.py  # Core game logic
+    ├── app.py                         # FastAPI server + endpoints
+    └── Dockerfile                     # Container definition
 ```
+
+## Environment Motivation
+
+Task prioritisation is a genuine challenge for AI agents in productivity tools,
+project management systems, and autonomous assistants. This environment provides
+a clean, standardised training ground for agents to learn deadline-aware,
+priority-sensitive scheduling behaviour — directly applicable to real-world
+AI assistant development.
