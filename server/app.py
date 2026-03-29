@@ -1,11 +1,11 @@
-from openenv.core.env_server.http_server import create_app
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-try:
-    from ..models import TaskSchedulerAction, TaskSchedulerObservation
-    from .task_scheduler_environment import TaskSchedulerEnvironment
-except ModuleNotFoundError:
-    from models import TaskSchedulerAction, TaskSchedulerObservation
-    from server.task_scheduler_environment import TaskSchedulerEnvironment
+from openenv.core.env_server.http_server import create_app
+from fastapi.responses import JSONResponse
+from models import TaskSchedulerAction, TaskSchedulerObservation
+from server.task_scheduler_environment import TaskSchedulerEnvironment
 
 
 app = create_app(
@@ -17,14 +17,7 @@ app = create_app(
 )
 
 
-# ─── Required hackathon endpoints ────────────────────────────────────────────
-
-from fastapi.responses import JSONResponse
-
-
-@app.get("/tasks")
 async def get_tasks():
-    """Returns list of tasks and action schema."""
     return JSONResponse({
         "tasks": [
             {
@@ -62,9 +55,7 @@ async def get_tasks():
     })
 
 
-@app.get("/grader")
 async def get_grader():
-    """Returns grader score info and criteria."""
     return JSONResponse({
         "score_range": "0.0 to 1.0",
         "description": "Score based on tasks completed on time vs total tasks",
@@ -83,19 +74,16 @@ async def get_grader():
     })
 
 
-@app.post("/baseline")
 async def run_baseline():
-    """Triggers Gemini baseline inference and returns scores for all 3 tasks."""
     import subprocess
-    import sys
     import json
-
     try:
         result = subprocess.run(
-            [sys.executable, "baseline.py"],
+            [sys.executable, "/app/env/baseline.py"],
             capture_output=True,
             text=True,
             timeout=120,
+            env={**os.environ, "PYTHONPATH": "/app/env"},
         )
         if result.returncode == 0:
             scores = json.loads(result.stdout)
@@ -112,7 +100,10 @@ async def run_baseline():
         )
 
 
-# ─── Server entrypoint ────────────────────────────────────────────────────────
+app.add_api_route("/tasks", get_tasks, methods=["GET"])
+app.add_api_route("/grader", get_grader, methods=["GET"])
+app.add_api_route("/baseline", run_baseline, methods=["POST"])
+
 
 def main(host: str = "0.0.0.0", port: int = 8000):
     import uvicorn
