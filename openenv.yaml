@@ -4,4 +4,31 @@ type: space
 runtime: fastapi
 app: server.app:app
 port: 8000
+description: "A real-world productivity environment where an AI agent learns to prioritise and schedule workplace tasks before their deadlines."
+author: CrestXCode
+tags:
+  - productivity
+  - scheduling
+  - task-management
+  - reinforcement-learning
+tasks:
+  - id: easy
+    name: Easy Scheduling
+    description: Schedule 5 tasks with generous deadlines. All effort=1.
+    difficulty: easy
+  - id: medium
+    name: Medium Scheduling
+    description: Schedule 8 tasks with tighter deadlines and varying effort levels.
+    difficulty: medium
+  - id: hard
+    name: Hard Scheduling
+    description: Schedule 10 tasks with tight deadlines. Urgent task injected at step 3.
+    difficulty: hard
+endpoints:
+  reset: /reset
+  step: /step
+  state: /state
+  tasks: /tasks
+  grader: /grader
+  baseline: /baseline
 
