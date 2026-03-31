@@ -6,9 +6,13 @@ from openenv.core import GenericEnvClient
 
 load_dotenv()
 
+API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
+HF_TOKEN = os.getenv("HF_TOKEN")
+
 client = OpenAI(
     api_key=os.getenv("GROQ_API_KEY"),
-    base_url="https://api.groq.com/openai/v1"
+    base_url=API_BASE_URL,
 )
 
 BASE_URL = "http://localhost:8000"
@@ -16,7 +20,7 @@ DIFFICULTIES = ["easy", "medium", "hard"]
 
 
 def run_episode(difficulty: str) -> float:
-    """Run one full episode with Groq LLM as the agent. Returns final score 0.0-1.0."""
+    """Run one full episode with LLM as the agent. Returns final score 0.0-1.0."""
 
     with GenericEnvClient(base_url=BASE_URL).sync() as env:
         result = env.reset()
@@ -55,7 +59,7 @@ Do not explain. Just the number."""
 
             try:
                 response = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
+                    model=MODEL_NAME,
                     messages=[{"role": "user", "content": prompt}],
                     max_tokens=10,
                     temperature=0.0,
