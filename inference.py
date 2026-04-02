@@ -8,87 +8,114 @@ load_dotenv()
 
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
-HF_TOKEN = os.getenv("HF_TOKEN")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY")
 
-client = OpenAI(
-    api_key=os.getenv("GROQ_API_KEY"),
-    base_url=API_BASE_URL,
-)
+client = OpenAI(api_key=OPENAI_API_KEY, base_url=API_BASE_URL)
 
-BASE_URL = "http://localhost:8000"
-DIFFICULTIES = ["easy", "medium", "hard"]
+TASKS = [
+    {"name": "easy-scheduling",   "url": "http://localhost:8000"},
+    {"name": "medium-scheduling", "url": "http://localhost:8001"},
+    {"name": "hard-scheduling",   "url": "http://localhost:8002"},
+]
 
 
-def run_episode(difficulty: str) -> float:
-    """Run one full episode with LLM as the agent. Returns final score 0.0-1.0."""
+def run_episode(task: dict) -> None:
+    task_name = task["name"]
+    base_url = task["url"]
 
-    with GenericEnvClient(base_url=BASE_URL).sync() as env:
-        result = env.reset()
+    print(f"[START] task={task_name} env=task-scheduler model={MODEL_NAME}", flush=True)
 
-        for step in range(20):
+    step_num = 0
+    rewards = []
+    success = False
+
+    try:
+        with GenericEnvClient(base_url=base_url).sync() as env:
+            result = env.reset()
             obs = result.observation
             done = result.done
 
-            if done:
-                break
+            for step_num in range(1, 21):
+                if done:
+                    success = obs.get("score", 0.0) >= 0.5
+                    break
 
-            tasks = obs.get("tasks", [])
-            incomplete = [t for t in tasks if not t["completed"]]
+                tasks = obs.get("tasks", [])
+                incomplete = [t for t in tasks if not t["completed"]]
 
-            if not incomplete:
-                break
+                if not incomplete:
+                    success = True
+                    break
 
-            prompt = f"""You are an AI productivity agent managing workplace tasks.
-Your job is to pick which task to work on at each step.
-
+                prompt = f"""You are an AI productivity agent managing workplace tasks.
 Current step: {obs.get('current_step', 0)}
 Last message: {obs.get('message', '')}
-Current score: {obs.get('score', 0.0)}
 
 Incomplete tasks:
 {json.dumps(incomplete, indent=2)}
 
-Rules for picking:
+Rules:
 - Always prioritise HIGH priority tasks first
 - Among same priority, pick the one with closest deadline
-- deadline means the step number by which it must be done
-- effort means how many steps it takes to complete
+- deadline = step number by which task must be done
+- effort = how many steps to complete
 
-Reply with ONLY a single integer — the task_id to work on.
+Reply with ONLY a single integer - the task_id to work on.
 Do not explain. Just the number."""
 
-            try:
-                response = client.chat.completions.create(
-                    model=MODEL_NAME,
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=10,
-                    temperature=0.0,
+                error_str = "null"
+                try:
+                    response = client.chat.completions.create(
+                        model=MODEL_NAME,
+                        messages=[{"role": "user", "content": prompt}],
+                        max_tokens=10,
+                        temperature=0.0,
+                    )
+                    raw = response.choices[0].message.content.strip()
+                    digits = ''.join(filter(str.isdigit, raw))
+                    task_id = int(digits) if digits else incomplete[0]["task_id"]
+                except Exception as e:
+                    task_id = incomplete[0]["task_id"]
+                    error_str = str(e)[:50]
+
+                valid_ids = [t["task_id"] for t in incomplete]
+                if task_id not in valid_ids:
+                    task_id = incomplete[0]["task_id"]
+
+                action_str = f"task_id={task_id}"
+                result = env.step({"task_id": task_id})
+
+                reward = result.reward if result.reward is not None else 0.0
+                rewards.append(reward)
+                obs = result.observation
+                done = result.done
+
+                print(
+                    f"[STEP] step={step_num} action={action_str} "
+                    f"reward={reward:.2f} done={str(done).lower()} "
+                    f"error={error_str}",
+                    flush=True
                 )
-                raw = response.choices[0].message.content.strip()
-                digits = ''.join(filter(str.isdigit, raw))
-                task_id = int(digits) if digits else incomplete[0]["task_id"]
-            except Exception:
-                task_id = incomplete[0]["task_id"]
 
-            valid_ids = [t["task_id"] for t in incomplete]
-            if task_id not in valid_ids:
-                task_id = incomplete[0]["task_id"]
+                if done:
+                    success = obs.get("score", 0.0) >= 0.5
+                    break
 
-            result = env.step({"task_id": task_id})
+    except Exception as e:
+        print(f"ERROR: {e}", flush=True)
+        success = False
 
-        return result.observation.get("score", 0.0)
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(
+        f"[END] success={str(success).lower()} steps={step_num} "
+        f"rewards={rewards_str if rewards_str else '0.00'}",
+        flush=True
+    )
 
 
 def main():
-    scores = {}
-    for difficulty in DIFFICULTIES:
-        try:
-            score = run_episode(difficulty)
-            scores[difficulty] = round(score, 2)
-        except Exception as e:
-            scores[difficulty] = 0.0
-
-    print(json.dumps(scores))
+    for task in TASKS:
+        run_episode(task)
 
 
 if __name__ == "__main__":

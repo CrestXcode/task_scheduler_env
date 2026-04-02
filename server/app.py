@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from models import TaskSchedulerAction, TaskSchedulerObservation
 from server.task_scheduler_environment import TaskSchedulerEnvironment
 
+_difficulty_store = {"current": "easy"}
 
 app = create_app(
     TaskSchedulerEnvironment,
@@ -15,6 +16,14 @@ app = create_app(
     env_name="task_scheduler",
     max_concurrent_envs=1,
 )
+
+
+async def set_difficulty(payload: dict):
+    from server.task_scheduler_environment import _difficulty_store
+    _difficulty_store["current"] = payload.get("difficulty", "easy")
+    return JSONResponse({"difficulty": _difficulty_store["current"]})
+
+app.add_api_route("/set_difficulty", set_difficulty, methods=["POST"])
 
 
 async def get_tasks():
