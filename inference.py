@@ -13,9 +13,9 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY, base_url=API_BASE_URL)
 
 TASKS = [
-    {"name": "easy-scheduling",   "url": "http://localhost:8000"},
-    {"name": "medium-scheduling", "url": "http://localhost:8001"},
-    {"name": "hard-scheduling",   "url": "http://localhost:8002"},
+    {"name": "easy-scheduling",   "url": "http://localhost:8000", "difficulty": "easy"},
+    {"name": "medium-scheduling", "url": "http://localhost:8000", "difficulty": "medium"},
+    {"name": "hard-scheduling",   "url": "http://localhost:8000", "difficulty": "hard"},
 ]
 
 
@@ -31,7 +31,7 @@ def run_episode(task: dict) -> None:
 
     try:
         with GenericEnvClient(base_url=base_url).sync() as env:
-            result = env.reset()
+            result = env.reset(difficulty=task["difficulty"])
             obs = result.observation
             done = result.done
 

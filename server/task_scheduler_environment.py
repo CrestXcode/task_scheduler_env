@@ -79,8 +79,7 @@ class TaskSchedulerEnvironment(Environment):
             return 0.0
         return round(self._tasks_completed / total, 2)
 
-    def reset(self) -> TaskSchedulerObservation:
-        difficulty = _difficulty_store.get("current", "easy")
+    def reset(self, difficulty: str = "easy") -> TaskSchedulerObservation:
         self._difficulty = difficulty
         self._tasks = self._build_tasks(difficulty)
         self._current_step = 0
@@ -190,16 +189,13 @@ class TaskSchedulerEnvironment(Environment):
         return self._grade()
     
 class EasyTaskScheduler(TaskSchedulerEnvironment):
-    def reset(self) -> TaskSchedulerObservation:
-        _difficulty_store["current"] = "easy"
-        return super().reset()
+    def reset(self, difficulty: str = "easy") -> TaskSchedulerObservation:
+        return super().reset(difficulty="easy")
 
 class MediumTaskScheduler(TaskSchedulerEnvironment):
-    def reset(self) -> TaskSchedulerObservation:
-        _difficulty_store["current"] = "medium"
-        return super().reset()
+    def reset(self, difficulty: str = "medium") -> TaskSchedulerObservation:
+        return super().reset(difficulty="medium")
 
 class HardTaskScheduler(TaskSchedulerEnvironment):
-    def reset(self) -> TaskSchedulerObservation:
-        _difficulty_store["current"] = "hard"
-        return super().reset()
+    def reset(self, difficulty: str = "hard") -> TaskSchedulerObservation:
+        return super().reset(difficulty="hard")
