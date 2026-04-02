@@ -56,21 +56,44 @@ async def get_tasks():
 
 
 async def get_grader():
+    results = {}
+    for difficulty in ["easy", "medium", "hard"]:
+        try:
+            env = TaskSchedulerEnvironment()
+            env.reset(difficulty=difficulty)
+            
+            # Run a smart heuristic agent
+            import random
+            for _ in range(20):
+                incomplete = [t for t in env._tasks if not t.completed]
+                if not incomplete:
+                    break
+                # Pick highest priority, closest deadline
+                task = sorted(
+                    incomplete,
+                    key=lambda t: (
+                        {"high": 0, "medium": 1, "low": 2}[t.priority],
+                        t.deadline
+                    )
+                )[0]
+                from models import TaskSchedulerAction
+                action = TaskSchedulerAction(task_id=task.task_id)
+                result = env.step(action)
+                if result.done:
+                    break
+            
+            results[difficulty] = {
+                "score": env.grader(),
+                "tasks_completed": env._tasks_completed,
+                "total_tasks": len(env._tasks),
+            }
+        except Exception as e:
+            results[difficulty] = {"score": 0.0, "error": str(e)}
+
     return JSONResponse({
+        "grader_results": results,
         "score_range": "0.0 to 1.0",
-        "description": "Score based on tasks completed on time vs total tasks",
-        "criteria": {
-            "1.0": "All tasks completed on time",
-            "0.5": "Half of tasks completed",
-            "0.0": "No tasks completed",
-        },
-        "partial_credit": {
-            "on_time_completion": "+1.0 reward",
-            "late_completion": "+0.3 reward",
-            "missed_deadline": "-0.3 reward",
-            "ignoring_urgent": "-0.1 per step",
-            "invalid_action": "-0.2 reward",
-        },
+        "description": "Score = tasks completed / total tasks",
     })
 
 
