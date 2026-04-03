@@ -1,11 +1,23 @@
 import sys
 import os
+import uvicorn
+
+# Handle all possible import paths
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from openenv.core.env_server.http_server import create_app
 from fastapi.responses import JSONResponse
-from models import TaskSchedulerAction, TaskSchedulerObservation
-from server.task_scheduler_environment import TaskSchedulerEnvironment
+
+try:
+    from task_scheduler.models import TaskSchedulerAction, TaskSchedulerObservation
+    from task_scheduler.server.task_scheduler_environment import TaskSchedulerEnvironment
+except ImportError:
+    try:
+        from models import TaskSchedulerAction, TaskSchedulerObservation
+        from server.task_scheduler_environment import TaskSchedulerEnvironment
+    except ImportError:
+        from task_scheduler.models import TaskSchedulerAction, TaskSchedulerObservation
+        from task_scheduler.server.task_scheduler_environment import TaskSchedulerEnvironment
 
 _difficulty_store = {"current": "easy"}
 
@@ -144,8 +156,4 @@ def main(host: str = "0.0.0.0", port: int = 8000):
 
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=8000)
-    args = parser.parse_args()
-    main(port=args.port)
+    main()
