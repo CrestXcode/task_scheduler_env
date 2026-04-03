@@ -1,3 +1,4 @@
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME", "task-scheduler-env")
 import os
 import json
 from dotenv import load_dotenv
