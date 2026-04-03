@@ -29,12 +29,11 @@ The agent receives a board of workplace tasks, each with a name, priority level,
 - **Hard** — 10 tasks, tight deadlines, urgent task injected at step 3
 
 ## Quick Start
-
 ```python
 from openenv.core import GenericEnvClient
 
 with GenericEnvClient(base_url="https://kashish014-task-scheduler-env.hf.space").sync() as env:
-    result = env.reset()
+    result = env.reset(difficulty="easy")  # easy, medium, or hard
     print(result.observation)
 
     result = env.step({"task_id": 0})
@@ -118,11 +117,11 @@ Final score = tasks completed / total tasks (0.0 to 1.0)
 
 Run with Groq LLaMA 3.1 8B Instant as the agent:
 
-| Difficulty | Score |
-|---|---|
-| Easy | 1.0 |
-| Medium | 1.0 |
-| Hard | 1.0 |
+| Difficulty | Success | Steps |
+|---|---|---|
+| Easy | true | 5 |
+| Medium | false | 9 |
+| Hard | false | 6 |
 
 ## Setup & Local Development
 
@@ -153,13 +152,14 @@ docker run -p 8000:8000 -e GROQ_API_KEY=your_key task-scheduler-env
 task_scheduler/
 ├── models.py                          # Pydantic Action, Observation types
 ├── client.py                          # TaskSchedulerEnv client
-├── baseline.py                        # Baseline inference script
+├── inference.py                       # Baseline inference script
 ├── openenv.yaml                       # OpenEnv manifest
+├── Dockerfile                         # Container definition (root, for HuggingFace)
 ├── README.md                          # This file
 └── server/
     ├── task_scheduler_environment.py  # Core game logic
     ├── app.py                         # FastAPI server + endpoints
-    └── Dockerfile                     # Container definition
+    └── Dockerfile                     # Container definition (local)
 ```
 
 ## Environment Motivation
