@@ -103,14 +103,20 @@ async def get_grader():
                     break
             
             score = env.grader()
-            # NO CLAMPING — return raw score
+            
+            # CRITICAL FIX: Ensure score is NEVER 0.0 or 1.0
+            if score >= 0.99:
+                score = 0.99
+            if score <= 0.01:
+                score = 0.01
+            
             results[difficulty] = {
                 "score": score,
                 "tasks_completed": env._tasks_completed,
                 "total_tasks": len(env._tasks),
             }
         except Exception as e:
-            results[difficulty] = {"score": 0.0, "error": str(e)}
+            results[difficulty] = {"score": 0.01, "error": str(e)}
 
     return JSONResponse({
         "grader_results": results,
@@ -143,9 +149,9 @@ async def run_baseline():
                         current_task = "hard"
                 elif line.startswith("[END]") and current_task:
                     if "success=true" in line:
-                        scores[current_task] = 0.98
+                        scores[current_task] = 0.99
                     else:
-                        scores[current_task] = 0.02
+                        scores[current_task] = 0.01
                     current_task = None
             return JSONResponse({"status": "success", "scores": scores})
         else:
