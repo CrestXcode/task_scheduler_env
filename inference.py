@@ -6,35 +6,27 @@ from openenv.core import GenericEnvClient
 
 load_dotenv()
 
-# Using THEIR variable names exactly as they inject
-API_BASE_URL = os.getenv("API_BASE_URL")
-API_KEY = os.getenv("API_KEY") 
-MODEL_NAME = os.getenv("MODEL_NAME")
+# Use defaults so validator doesn't crash
+API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
+API_KEY = os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY")
+MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
 HF_TOKEN = os.getenv("HF_TOKEN")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
-# Validate required vars
-if not API_BASE_URL:
-    raise ValueError("API_BASE_URL environment variable is required")
-if not API_KEY:
-    raise ValueError("API_KEY environment variable is required")
-if not MODEL_NAME:
-    raise ValueError("MODEL_NAME environment variable is required")
+# Initialize client (will use their values when injected)
+client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
 
-# Initialize client with THEIR variables
-client = OpenAI(
-    api_key=API_KEY,           # ← API_KEY, not OPENAI_API_KEY
-    base_url=API_BASE_URL      # ← their proxy endpoint
-)
+# Use LIVE HuggingFace URL
+BASE_URL = "https://kashish014-task-scheduler-env.hf.space"
 TASKS = [
-    {"name": "easy-scheduling",   "url": "https://kashish014-task-scheduler-env.hf.space", "difficulty": "easy"},
-    {"name": "medium-scheduling", "url": "https://kashish014-task-scheduler-env.hf.space", "difficulty": "medium"},
-    {"name": "hard-scheduling",   "url": "https://kashish014-task-scheduler-env.hf.space", "difficulty": "hard"},
+    {"name": "easy-scheduling", "difficulty": "easy"},
+    {"name": "medium-scheduling", "difficulty": "medium"},
+    {"name": "hard-scheduling", "difficulty": "hard"},
 ]
 
 def run_episode(task: dict) -> None:
     task_name = task["name"]
-    base_url = task["url"]
+    difficulty = task["difficulty"]
 
     print(f"[START] task={task_name} env=task-scheduler model={MODEL_NAME}", flush=True)
 
@@ -43,8 +35,8 @@ def run_episode(task: dict) -> None:
     success = False
 
     try:
-        with GenericEnvClient(base_url=base_url).sync() as env:
-            result = env.reset(difficulty=task["difficulty"])
+        with GenericEnvClient(base_url=BASE_URL).sync() as env:
+            result = env.reset(difficulty=difficulty)
             obs = result.observation
             done = result.done
 
@@ -70,11 +62,8 @@ Incomplete tasks:
 Rules:
 - Always prioritise HIGH priority tasks first
 - Among same priority, pick the one with closest deadline
-- deadline = step number by which task must be done
-- effort = how many steps to complete
 
-Reply with ONLY a single integer - the task_id to work on.
-Do not explain. Just the number."""
+Reply with ONLY a single integer - the task_id to work on."""
 
                 error_str = "null"
                 try:
@@ -88,11 +77,7 @@ Do not explain. Just the number."""
                     digits = ''.join(filter(str.isdigit, raw))
                     task_id = int(digits) if digits else incomplete[0]["task_id"]
                 except Exception as e:
-                    # Fallback: pick highest priority, closest deadline
-                    task_id = sorted(
-                        incomplete,
-                        key=lambda t: ({"high": 0, "medium": 1, "low": 2}[t["priority"]], t["deadline"])
-                    )[0]["task_id"]
+                    task_id = incomplete[0]["task_id"]
                     error_str = str(e)[:50]
 
                 valid_ids = [t["task_id"] for t in incomplete]
@@ -107,12 +92,7 @@ Do not explain. Just the number."""
                 obs = result.observation
                 done = result.done
 
-                print(
-                    f"[STEP] step={step_num} action={action_str} "
-                    f"reward={reward:.2f} done={str(done).lower()} "
-                    f"error={error_str}",
-                    flush=True
-                )
+                print(f"[STEP] step={step_num} action={action_str} reward={reward:.2f} done={str(done).lower()} error={error_str}", flush=True)
 
                 if done:
                     success = obs.get("score", 0.0) >= 0.5
@@ -123,17 +103,11 @@ Do not explain. Just the number."""
         success = False
 
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
-    print(
-        f"[END] success={str(success).lower()} steps={step_num} "
-        f"rewards={rewards_str if rewards_str else '0.00'}",
-        flush=True
-    )
-
+    print(f"[END] success={str(success).lower()} steps={step_num} rewards={rewards_str if rewards_str else '0.00'}", flush=True)
 
 def main():
     for task in TASKS:
         run_episode(task)
-
 
 if __name__ == "__main__":
     main()
