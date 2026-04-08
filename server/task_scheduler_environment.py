@@ -74,10 +74,20 @@ class TaskSchedulerEnvironment(Environment):
         return tasks
 
     def _grade(self) -> float:
+        """Return score strictly between 0 and 1 (not 0.0, not 1.0)"""
         total = len(self._tasks)
         if total == 0:
-            return 0.0
-        return round(self._tasks_completed / total, 2)
+            return 0.02  # Never return 0.0
+        
+        score = self._tasks_completed / total
+        
+        # Ensure score is strictly between 0 and 1
+        if score >= 0.99:
+            score = 0.98
+        if score <= 0.01:
+            score = 0.02
+            
+        return round(score, 2)
 
     def reset(self, difficulty: str = "easy") -> TaskSchedulerObservation:
         self._difficulty = difficulty
@@ -96,7 +106,7 @@ class TaskSchedulerEnvironment(Environment):
             current_step=0,
             tasks=[t.to_dict() for t in self._tasks],
             message=f"Episode started! Difficulty: {difficulty}. Complete {len(self._tasks)} tasks before their deadlines.",
-            score=0.0,
+            score=0.02,  # Start with a small non-zero score
         )
 
     def step(self, action: TaskSchedulerAction) -> TaskSchedulerObservation:
@@ -186,15 +196,19 @@ class TaskSchedulerEnvironment(Environment):
         return self._state
 
     def grader(self) -> float:
+        """Return score strictly between 0 and 1"""
         return self._grade()
-    
+
+
 class EasyTaskScheduler(TaskSchedulerEnvironment):
     def reset(self, difficulty: str = "easy") -> TaskSchedulerObservation:
         return super().reset(difficulty="easy")
 
+
 class MediumTaskScheduler(TaskSchedulerEnvironment):
     def reset(self, difficulty: str = "medium") -> TaskSchedulerObservation:
         return super().reset(difficulty="medium")
+
 
 class HardTaskScheduler(TaskSchedulerEnvironment):
     def reset(self, difficulty: str = "hard") -> TaskSchedulerObservation:

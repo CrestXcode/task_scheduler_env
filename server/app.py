@@ -84,7 +84,6 @@ async def get_grader():
             env.reset(difficulty=difficulty)
             
             # Run a smart heuristic agent
-            import random
             for _ in range(20):
                 incomplete = [t for t in env._tasks if not t.completed]
                 if not incomplete:
@@ -103,18 +102,25 @@ async def get_grader():
                 if result.done:
                     break
             
+            score = env.grader()
+            # CLAMP SCORES - strictly between 0 and 1 (not 0.0, not 1.0)
+            if score >= 0.99:
+                score = 0.98
+            if score <= 0.01:
+                score = 0.02
+            
             results[difficulty] = {
-                "score": env.grader(),
+                "score": score,
                 "tasks_completed": env._tasks_completed,
                 "total_tasks": len(env._tasks),
             }
         except Exception as e:
-            results[difficulty] = {"score": 0.0, "error": str(e)}
+            results[difficulty] = {"score": 0.02, "error": str(e)}
 
     return JSONResponse({
         "grader_results": results,
-        "score_range": "0.0 to 1.0",
-        "description": "Score = tasks completed / total tasks",
+        "score_range": "0.02 to 0.98",
+        "description": "Score = tasks completed / total tasks (clamped to 0.02-0.98 range)",
     })
 
 
@@ -123,14 +129,30 @@ async def run_baseline():
     import json
     try:
         result = subprocess.run(
-            [sys.executable, "/app/env/baseline.py"],
+            [sys.executable, "inference.py"],
             capture_output=True,
             text=True,
             timeout=120,
-            env={**os.environ, "PYTHONPATH": "/app/env"},
         )
         if result.returncode == 0:
-            scores = json.loads(result.stdout)
+            # Parse the output to extract scores
+            lines = result.stdout.strip().split('\n')
+            scores = {"easy": 0.0, "medium": 0.0, "hard": 0.0}
+            current_task = None
+            for line in lines:
+                if line.startswith("[START]"):
+                    if "easy" in line:
+                        current_task = "easy"
+                    elif "medium" in line:
+                        current_task = "medium"
+                    elif "hard" in line:
+                        current_task = "hard"
+                elif line.startswith("[END]") and current_task:
+                    if "success=true" in line:
+                        scores[current_task] = 0.98
+                    else:
+                        scores[current_task] = 0.02
+                    current_task = None
             return JSONResponse({"status": "success", "scores": scores})
         else:
             return JSONResponse(
@@ -148,8 +170,6 @@ app.add_api_route("/tasks", get_tasks, methods=["GET"])
 app.add_api_route("/grader", get_grader, methods=["GET"])
 app.add_api_route("/baseline", run_baseline, methods=["POST"])
 
-
-import uvicorn
 
 def main(host: str = "0.0.0.0", port: int = 8000):
     uvicorn.run(app, host=host, port=port)
