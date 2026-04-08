@@ -88,6 +88,7 @@ async def get_grader():
                 incomplete = [t for t in env._tasks if not t.completed]
                 if not incomplete:
                     break
+                # Pick highest priority, closest deadline
                 task = sorted(
                     incomplete,
                     key=lambda t: (
@@ -102,23 +103,18 @@ async def get_grader():
                     break
             
             score = env.grader()
-            # Clamp scores
-            if score >= 0.99:
-                score = 0.98
-            if score <= 0.01:
-                score = 0.02
-            
+            # NO CLAMPING — return raw score
             results[difficulty] = {
                 "score": score,
                 "tasks_completed": env._tasks_completed,
                 "total_tasks": len(env._tasks),
             }
         except Exception as e:
-            results[difficulty] = {"score": 0.02, "error": str(e)}
+            results[difficulty] = {"score": 0.0, "error": str(e)}
 
     return JSONResponse({
         "grader_results": results,
-        "score_range": "0.0 to 1.0",  # ← MUST BE EXACTLY THIS
+        "score_range": "0.0 to 1.0",
         "description": "Score = tasks completed / total tasks",
     })
 
@@ -134,7 +130,6 @@ async def run_baseline():
             timeout=120,
         )
         if result.returncode == 0:
-            # Parse the output to extract scores
             lines = result.stdout.strip().split('\n')
             scores = {"easy": 0.0, "medium": 0.0, "hard": 0.0}
             current_task = None
