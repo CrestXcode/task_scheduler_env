@@ -6,22 +6,31 @@ from openenv.core import GenericEnvClient
 
 load_dotenv()
 
-API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
+# Using THEIR variable names exactly as they inject
+API_BASE_URL = os.getenv("API_BASE_URL")
+API_KEY = os.getenv("API_KEY") 
+MODEL_NAME = os.getenv("MODEL_NAME")
 HF_TOKEN = os.getenv("HF_TOKEN")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY", "")
 
-client = OpenAI(api_key=OPENAI_API_KEY, base_url=API_BASE_URL)
+# Validate required vars
+if not API_BASE_URL:
+    raise ValueError("API_BASE_URL environment variable is required")
+if not API_KEY:
+    raise ValueError("API_KEY environment variable is required")
+if not MODEL_NAME:
+    raise ValueError("MODEL_NAME environment variable is required")
 
-BASE_URL = os.getenv("TASK_SCHEDULER_URL", "https://kashish014-task-scheduler-env.hf.space")
-
+# Initialize client with THEIR variables
+client = OpenAI(
+    api_key=API_KEY,           # ← API_KEY, not OPENAI_API_KEY
+    base_url=API_BASE_URL      # ← their proxy endpoint
+)
 TASKS = [
-    {"name": "easy-scheduling",   "url": BASE_URL, "difficulty": "easy"},
-    {"name": "medium-scheduling", "url": BASE_URL, "difficulty": "medium"},
-    {"name": "hard-scheduling",   "url": BASE_URL, "difficulty": "hard"},
+    {"name": "easy-scheduling",   "url": "https://kashish014-task-scheduler-env.hf.space", "difficulty": "easy"},
+    {"name": "medium-scheduling", "url": "https://kashish014-task-scheduler-env.hf.space", "difficulty": "medium"},
+    {"name": "hard-scheduling",   "url": "https://kashish014-task-scheduler-env.hf.space", "difficulty": "hard"},
 ]
-
 
 def run_episode(task: dict) -> None:
     task_name = task["name"]
