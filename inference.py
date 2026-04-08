@@ -10,18 +10,16 @@ API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
 HF_TOKEN = os.getenv("HF_TOKEN")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-
-if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY environment variable is required")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY", "")
 
 client = OpenAI(api_key=OPENAI_API_KEY, base_url=API_BASE_URL)
 
+BASE_URL = os.getenv("TASK_SCHEDULER_URL", "https://kashish014-task-scheduler-env.hf.space")
+
 TASKS = [
-    {"name": "easy-scheduling",   "url": "http://localhost:8000", "difficulty": "easy"},
-    {"name": "medium-scheduling", "url": "http://localhost:8000", "difficulty": "medium"},
-    {"name": "hard-scheduling",   "url": "http://localhost:8000", "difficulty": "hard"},
+    {"name": "easy-scheduling",   "url": BASE_URL, "difficulty": "easy"},
+    {"name": "medium-scheduling", "url": BASE_URL, "difficulty": "medium"},
+    {"name": "hard-scheduling",   "url": BASE_URL, "difficulty": "hard"},
 ]
 
 
@@ -81,7 +79,11 @@ Do not explain. Just the number."""
                     digits = ''.join(filter(str.isdigit, raw))
                     task_id = int(digits) if digits else incomplete[0]["task_id"]
                 except Exception as e:
-                    task_id = incomplete[0]["task_id"]
+                    # Fallback: pick highest priority, closest deadline
+                    task_id = sorted(
+                        incomplete,
+                        key=lambda t: ({"high": 0, "medium": 1, "low": 2}[t["priority"]], t["deadline"])
+                    )[0]["task_id"]
                     error_str = str(e)[:50]
 
                 valid_ids = [t["task_id"] for t in incomplete]
