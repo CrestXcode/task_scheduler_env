@@ -73,13 +73,14 @@ class TaskSchedulerEnvironment(Environment):
             ))
         return tasks
 
-    def _grade(self) -> float:
-        """Return EXACT raw score (may be 0.0 or 1.0)"""
+    def grader(self) -> float:
+        # Return final grade strictly between 0.0 and 1.0 (exclusive).
         total = len(self._tasks)
         if total == 0:
-            return 0.0
-        # Return exact division, no rounding, no clamping
-        return self._tasks_completed / total
+            return 0.5
+        raw = self._tasks_completed / total
+        # Clamp to strictly (0, 1) — never 0.0 or 1.0
+        return round(max(0.01, min(0.99, raw)), 2)
 
     def reset(self, difficulty: str = "easy") -> TaskSchedulerObservation:
         self._difficulty = difficulty
@@ -187,9 +188,13 @@ class TaskSchedulerEnvironment(Environment):
     def state(self) -> State:
         return self._state
 
-    def grader(self) -> float:
-        """Return raw score"""
-        return self._grade()
+    def _grade(self) -> float:
+        """Return final grade strictly between 0.0 and 1.0 (exclusive)."""
+        total = len(self._tasks)
+        if total == 0:
+            return 0.5
+        raw = self._tasks_completed / total
+        return round(max(0.01, min(0.99, raw)), 2)
 
 
 class EasyTaskScheduler(TaskSchedulerEnvironment):

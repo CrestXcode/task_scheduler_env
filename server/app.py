@@ -103,18 +103,12 @@ async def get_grader():
                     break
             
             score = env.grader()
-            
-            # CRITICAL FIX: Ensure score is NEVER 0.0 or 1.0
-            if score >= 0.99:
-                score = 0.99
-            if score <= 0.01:
-                score = 0.01
-            
+            # already clamped by grader() method, but double-clamp here too
             results[difficulty] = {
-                "score": score,
-                "tasks_completed": env._tasks_completed,
-                "total_tasks": len(env._tasks),
-            }
+             "score": round(max(0.01, min(0.99, score)), 2),
+             "tasks_completed": env._tasks_completed,
+             "total_tasks": len(env._tasks),
+}
         except Exception as e:
             results[difficulty] = {"score": 0.01, "error": str(e)}
 
