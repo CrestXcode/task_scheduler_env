@@ -14,13 +14,13 @@ _difficulty_store = {"current": "easy"}
 
 TASK_TEMPLATES = {
     "easy": [
-    {"name": "Reply to emails",      "priority": "high",   "effort": 1, "deadline": 4},
-    {"name": "Update status report", "priority": "medium", "effort": 1, "deadline": 5},
-    {"name": "Review pull request",  "priority": "high",   "effort": 1, "deadline": 3},
-    {"name": "Schedule meeting",     "priority": "low",    "effort": 1, "deadline": 6},
-    {"name": "Fix typo in docs",     "priority": "low",    "effort": 1, "deadline": 7},
-    {"name": "Team sync preparation", "priority": "medium", "effort": 1, "deadline": 4},
-    {"name": "Extra documentation",  "priority": "low",    "effort": 1, "deadline": 5},
+    {"name": "Reply to emails",      "priority": "high",   "effort": 2, "deadline": 6},
+    {"name": "Update status report", "priority": "medium", "effort": 2, "deadline": 7},
+    {"name": "Review pull request",  "priority": "high",   "effort": 2, "deadline": 5},
+    {"name": "Schedule meeting",     "priority": "low",    "effort": 2, "deadline": 8},
+    {"name": "Fix typo in docs",     "priority": "low",    "effort": 2, "deadline": 9},
+    {"name": "Team sync preparation", "priority": "medium", "effort": 2, "deadline": 6},
+    {"name": "Extra documentation",  "priority": "low",    "effort": 2, "deadline": 7},
     ],
     "medium": [
         {"name": "Write unit tests",        "priority": "high",   "effort": 2, "deadline": 5},
