@@ -140,11 +140,11 @@ async def get_grader():
                     break
             
             score = env.grader()
-            # Gentle clamping only at extremes
-            if score >= 0.99:
-                score = 0.95
-            if score <= 0.01:
-                score = 0.05
+            # Gentle clamping - only if exactly 1.0 or 0.0
+            if score >= 1.0:
+               score = 0.95
+            if score <= 0.0:
+               score = 0.05
             
             results[difficulty] = {
                 "score": round(score, 2),
