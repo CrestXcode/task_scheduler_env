@@ -83,43 +83,76 @@ async def get_grader():
             env = TaskSchedulerEnvironment()
             env.reset(difficulty=difficulty)
             
-            # Run a SMART heuristic agent
+            # SMART AGENT with proper project management logic
             for step in range(20):
                 incomplete = [t for t in env._tasks if not t.completed]
                 if not incomplete:
                     break
                 
-                # Calculate urgency score for each task
-                def urgency_score(task):
-                    priority_weight = {"high": 3, "medium": 2, "low": 1}[task.priority]
-                    time_left = task.deadline - env._current_step
-                    # Urgency = priority*10 + (closer deadline = higher score) + effort weighting
-                    # Higher score = more urgent
-                    score = (priority_weight * 10) + (20 - time_left) + (task.effort * 2)
-                    return score
+                # Calculate which task to work on next
+                best_task = None
+                best_score = -float('inf')
                 
-                task = sorted(incomplete, key=urgency_score, reverse=True)[0]
+                for task in incomplete:
+                    # Time remaining until deadline
+                    time_remaining = task.deadline - env._current_step
+                    
+                    # Priority score (higher = more important)
+                    priority_score = {"high": 10, "medium": 5, "low": 1}[task.priority]
+                    
+                    # Urgency score (closer deadline = more urgent)
+                    if time_remaining <= 0:
+                        urgency_score = 100  # Already missed!
+                    elif time_remaining <= 2:
+                        urgency_score = 50   # Very urgent
+                    elif time_remaining <= 4:
+                        urgency_score = 30   # Urgent
+                    else:
+                        urgency_score = 10   # Normal
+                    
+                    # Progress score (tasks partially done should be finished)
+                    progress = env._work_progress.get(task.task_id, 0)
+                    progress_score = progress * 5  # Encourage finishing what you started
+                    
+                    # Effort score (can we finish it quickly?)
+                    steps_needed = task.effort - progress
+                    if steps_needed <= 1:
+                        effort_score = 20   # Quick win
+                    elif steps_needed <= 2:
+                        effort_score = 10
+                    else:
+                        effort_score = 0
+                    
+                    # Total score
+                    total_score = priority_score + urgency_score + progress_score + effort_score
+                    
+                    if total_score > best_score:
+                        best_score = total_score
+                        best_task = task
+                
+                if best_task is None:
+                    break
                 
                 from models import TaskSchedulerAction
-                action = TaskSchedulerAction(task_id=task.task_id)
+                action = TaskSchedulerAction(task_id=best_task.task_id)
                 result = env.step(action)
                 if result.done:
                     break
             
             score = env.grader()
-            # Clamp to strictly between 0 and 1
+            # Gentle clamping only at extremes
             if score >= 0.99:
-                score = 0.98
+                score = 0.95
             if score <= 0.01:
-                score = 0.02
+                score = 0.05
             
             results[difficulty] = {
-                "score": score,
+                "score": round(score, 2),
                 "tasks_completed": env._tasks_completed,
                 "total_tasks": len(env._tasks),
             }
         except Exception as e:
-            results[difficulty] = {"score": 0.02, "error": str(e)}
+            results[difficulty] = {"score": 0.05, "error": str(e)}
 
     return JSONResponse({
         "grader_results": results,
