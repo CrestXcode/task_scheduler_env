@@ -19,6 +19,7 @@ TASK_TEMPLATES = {
         {"name": "Review pull request",  "priority": "high",   "effort": 1, "deadline": 3},
         {"name": "Schedule meeting",     "priority": "low",    "effort": 1, "deadline": 6},
         {"name": "Fix typo in docs",     "priority": "low",    "effort": 1, "deadline": 7},
+        {"name": "Team sync preparation", "priority": "medium", "effort": 1, "deadline": 4},  # 6th task
     ],
     "medium": [
         {"name": "Write unit tests",        "priority": "high",   "effort": 2, "deadline": 5},
@@ -74,7 +75,7 @@ class TaskSchedulerEnvironment(Environment):
         return tasks
 
     def grader(self) -> float:
-        # Return final grade strictly between 0.0 and 1.0 (exclusive).
+        """Return final grade strictly between 0.0 and 1.0 (exclusive)."""
         total = len(self._tasks)
         if total == 0:
             return 0.5
@@ -120,7 +121,7 @@ class TaskSchedulerEnvironment(Environment):
             self._tasks.append(urgent)
             self._work_progress[urgent.task_id] = 0
             self._urgent_task_injected = True
-            message += "URGENT task injected — reprioritise now! "
+            message += " URGENT task injected — reprioritise now! "
 
         task_id = action.task_id
         valid_ids = [t.task_id for t in self._tasks if not t.completed]
@@ -164,7 +165,7 @@ class TaskSchedulerEnvironment(Environment):
                 reward -= 0.1
                 message += f"'{task.name}' is urgent and being ignored! "
 
-        self._score = self._grade()
+        self._score = self.grader()
         reward = round(reward, 2)
         all_done = all(t.completed for t in self._tasks)
         done = all_done or self._current_step >= 20
@@ -187,14 +188,6 @@ class TaskSchedulerEnvironment(Environment):
     @property
     def state(self) -> State:
         return self._state
-
-    def _grade(self) -> float:
-        """Return final grade strictly between 0.0 and 1.0 (exclusive)."""
-        total = len(self._tasks)
-        if total == 0:
-            return 0.5
-        raw = self._tasks_completed / total
-        return round(max(0.01, min(0.99, raw)), 2)
 
 
 class EasyTaskScheduler(TaskSchedulerEnvironment):
