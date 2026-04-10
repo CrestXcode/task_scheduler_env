@@ -83,19 +83,23 @@ async def get_grader():
             env = TaskSchedulerEnvironment()
             env.reset(difficulty=difficulty)
             
-            # Run a smart heuristic agent
-            for _ in range(20):
+            # Run a SMART heuristic agent
+            for step in range(20):
                 incomplete = [t for t in env._tasks if not t.completed]
                 if not incomplete:
                     break
-                task = sorted(
-                  incomplete,
-                  key=lambda t: (
-                    {"high": 0, "medium": 1, "low": 2}[t.priority],
-                    t.deadline,
-                    t.effort  # Prefer tasks that take fewer steps
-                    )
-               )[0]
+                
+                # Calculate urgency score for each task
+                def urgency_score(task):
+                    priority_weight = {"high": 3, "medium": 2, "low": 1}[task.priority]
+                    time_left = task.deadline - env._current_step
+                    # Urgency = priority*10 + (closer deadline = higher score) + effort weighting
+                    # Higher score = more urgent
+                    score = (priority_weight * 10) + (20 - time_left) + (task.effort * 2)
+                    return score
+                
+                task = sorted(incomplete, key=urgency_score, reverse=True)[0]
+                
                 from models import TaskSchedulerAction
                 action = TaskSchedulerAction(task_id=task.task_id)
                 result = env.step(action)
@@ -103,14 +107,19 @@ async def get_grader():
                     break
             
             score = env.grader()
-            # already clamped by grader() method, but double-clamp here too
+            # Clamp to strictly between 0 and 1
+            if score >= 0.99:
+                score = 0.98
+            if score <= 0.01:
+                score = 0.02
+            
             results[difficulty] = {
-             "score": round(max(0.01, min(0.99, score)), 2),
-             "tasks_completed": env._tasks_completed,
-             "total_tasks": len(env._tasks),
-}
+                "score": score,
+                "tasks_completed": env._tasks_completed,
+                "total_tasks": len(env._tasks),
+            }
         except Exception as e:
-            results[difficulty] = {"score": 0.01, "error": str(e)}
+            results[difficulty] = {"score": 0.02, "error": str(e)}
 
     return JSONResponse({
         "grader_results": results,

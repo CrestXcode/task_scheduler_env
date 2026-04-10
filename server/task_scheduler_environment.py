@@ -20,25 +20,29 @@ TASK_TEMPLATES = {
         {"name": "Schedule meeting",     "priority": "low",    "effort": 2, "deadline": 8},
         {"name": "Fix typo in docs",     "priority": "low",    "effort": 2, "deadline": 9},
         {"name": "Team sync",            "priority": "medium", "effort": 2, "deadline": 6},
+        {"name": "Write quick notes",    "priority": "low",    "effort": 1, "deadline": 4},  # Quick win
     ],
     "medium": [
-        {"name": "Write unit tests",        "priority": "high",   "effort": 2, "deadline": 6},
+        {"name": "Write unit tests",        "priority": "high",   "effort": 3, "deadline": 7},
         {"name": "Code review sprint",      "priority": "high",   "effort": 2, "deadline": 5},
-        {"name": "Update dependencies",     "priority": "medium", "effort": 2, "deadline": 7},
+        {"name": "Update dependencies",     "priority": "medium", "effort": 2, "deadline": 8},
         {"name": "Prepare presentation",    "priority": "high",   "effort": 3, "deadline": 6},
         {"name": "Debug production issue",  "priority": "high",   "effort": 2, "deadline": 4},
-        {"name": "Refactor module",         "priority": "medium", "effort": 3, "deadline": 8},
-        {"name": "Document API",            "priority": "low",    "effort": 2, "deadline": 9},
+        {"name": "Refactor module",         "priority": "medium", "effort": 3, "deadline": 9},
+        {"name": "Document API",            "priority": "low",    "effort": 2, "deadline": 10},
+        {"name": "Quick bug fix",           "priority": "high",   "effort": 1, "deadline": 3},  # Urgent quick win
     ],
-   "hard": [
-    {"name": "Migrate database schema",  "priority": "high",   "effort": 3, "deadline": 5},
-    {"name": "Security audit report",    "priority": "high",   "effort": 3, "deadline": 4},
-    {"name": "Deploy to production",     "priority": "high",   "effort": 2, "deadline": 3},
-    {"name": "Incident post-mortem",     "priority": "high",   "effort": 2, "deadline": 4},
-    {"name": "Optimize slow queries",    "priority": "medium", "effort": 3, "deadline": 6},
-    {"name": "Implement OAuth flow",     "priority": "high",   "effort": 3, "deadline": 5},
-    {"name": "Load testing report",      "priority": "medium", "effort": 2, "deadline": 5},
-    {"name": "Onboard new engineer",     "priority": "medium", "effort": 2, "deadline": 6},
+    "hard": [
+        {"name": "Migrate database schema",  "priority": "high",   "effort": 4, "deadline": 6},
+        {"name": "Security audit report",    "priority": "high",   "effort": 3, "deadline": 5},
+        {"name": "Deploy to production",     "priority": "high",   "effort": 2, "deadline": 4},
+        {"name": "Incident post-mortem",     "priority": "high",   "effort": 2, "deadline": 5},
+        {"name": "Optimize slow queries",    "priority": "medium", "effort": 3, "deadline": 7},
+        {"name": "Implement OAuth flow",     "priority": "high",   "effort": 4, "deadline": 6},
+        {"name": "Load testing report",      "priority": "medium", "effort": 2, "deadline": 6},
+        {"name": "Onboard new engineer",     "priority": "medium", "effort": 2, "deadline": 7},
+        {"name": "Quarterly review prep",    "priority": "high",   "effort": 3, "deadline": 5},
+        {"name": "Emergency hotfix",         "priority": "high",   "effort": 1, "deadline": 2},  # Super urgent
     ],
 }
 
