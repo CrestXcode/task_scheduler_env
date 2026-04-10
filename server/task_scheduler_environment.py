@@ -14,23 +14,25 @@ _difficulty_store = {"current": "easy"}
 
 TASK_TEMPLATES = {
     "easy": [
-    {"name": "Reply to emails",      "priority": "high",   "effort": 2, "deadline": 6},
-    {"name": "Update status report", "priority": "medium", "effort": 2, "deadline": 7},
-    {"name": "Review pull request",  "priority": "high",   "effort": 2, "deadline": 5},
-    {"name": "Schedule meeting",     "priority": "low",    "effort": 2, "deadline": 8},
-    {"name": "Fix typo in docs",     "priority": "low",    "effort": 2, "deadline": 9},
-    {"name": "Team sync preparation", "priority": "medium", "effort": 2, "deadline": 6},
-    {"name": "Extra documentation",  "priority": "low",    "effort": 2, "deadline": 7},
+        {"name": "Reply to emails",      "priority": "high",   "effort": 1, "deadline": 5},
+        {"name": "Update status report", "priority": "medium", "effort": 1, "deadline": 6},
+        {"name": "Review pull request",  "priority": "high",   "effort": 1, "deadline": 4},
+        {"name": "Schedule meeting",     "priority": "low",    "effort": 1, "deadline": 7},
+        {"name": "Fix typo in docs",     "priority": "low",    "effort": 1, "deadline": 8},
+        {"name": "Team sync",            "priority": "medium", "effort": 1, "deadline": 5},
+        {"name": "Write documentation",  "priority": "low",    "effort": 1, "deadline": 6},
+        {"name": "Code review",          "priority": "high",   "effort": 1, "deadline": 4},
     ],
     "medium": [
-        {"name": "Write unit tests",        "priority": "high",   "effort": 2, "deadline": 5},
-        {"name": "Code review sprint",      "priority": "high",   "effort": 2, "deadline": 4},
-        {"name": "Update dependencies",     "priority": "medium", "effort": 2, "deadline": 6},
-        {"name": "Prepare presentation",    "priority": "high",   "effort": 2, "deadline": 3},
-        {"name": "Debug production issue",  "priority": "high",   "effort": 2, "deadline": 2},
-        {"name": "Refactor module",         "priority": "medium", "effort": 3, "deadline": 7},
-        {"name": "Document API endpoints",  "priority": "low",    "effort": 2, "deadline": 8},
-        {"name": "Team sync preparation",   "priority": "medium", "effort": 1, "deadline": 4},
+        {"name": "Write unit tests",        "priority": "high",   "effort": 2, "deadline": 6},
+        {"name": "Code review sprint",      "priority": "high",   "effort": 2, "deadline": 5},
+        {"name": "Update dependencies",     "priority": "medium", "effort": 2, "deadline": 7},
+        {"name": "Prepare presentation",    "priority": "high",   "effort": 2, "deadline": 4},
+        {"name": "Debug production issue",  "priority": "high",   "effort": 2, "deadline": 3},
+        {"name": "Refactor module",         "priority": "medium", "effort": 3, "deadline": 8},
+        {"name": "Document API",            "priority": "low",    "effort": 2, "deadline": 9},
+        {"name": "Team sync",               "priority": "medium", "effort": 1, "deadline": 5},
+        {"name": "Performance testing",     "priority": "medium", "effort": 2, "deadline": 6},
     ],
     "hard": [
         {"name": "Migrate database schema",  "priority": "high",   "effort": 3, "deadline": 4},
@@ -42,7 +44,9 @@ TASK_TEMPLATES = {
         {"name": "Load testing report",      "priority": "medium", "effort": 2, "deadline": 4},
         {"name": "Onboard new engineer",     "priority": "medium", "effort": 2, "deadline": 5},
         {"name": "Quarterly review prep",    "priority": "high",   "effort": 3, "deadline": 3},
-        {"name": "Fix critical bug in prod", "priority": "high",   "effort": 2, "deadline": 1},
+        {"name": "Fix critical bug",         "priority": "high",   "effort": 2, "deadline": 1},
+        {"name": "Security patch",           "priority": "high",   "effort": 2, "deadline": 2},  # 11 tasks
+        {"name": "Compliance check",         "priority": "medium", "effort": 2, "deadline": 4},  # 12 tasks
     ],
 }
 
