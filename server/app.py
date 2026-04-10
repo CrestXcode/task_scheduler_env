@@ -88,14 +88,14 @@ async def get_grader():
                 incomplete = [t for t in env._tasks if not t.completed]
                 if not incomplete:
                     break
-                # Pick highest priority, closest deadline
                 task = sorted(
-                    incomplete,
-                    key=lambda t: (
-                        {"high": 0, "medium": 1, "low": 2}[t.priority],
-                        t.deadline
+                  incomplete,
+                  key=lambda t: (
+                    {"high": 0, "medium": 1, "low": 2}[t.priority],
+                    t.deadline,
+                    t.effort  # Prefer tasks that take fewer steps
                     )
-                )[0]
+               )[0]
                 from models import TaskSchedulerAction
                 action = TaskSchedulerAction(task_id=task.task_id)
                 result = env.step(action)
