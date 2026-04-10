@@ -12,7 +12,7 @@ except ImportError:
 _difficulty_store = {"current": "easy"}
 
 
-TTASK_TEMPLATES = {
+TASK_TEMPLATES = {
     "easy": [
         {"name": "Quick email responses",    "priority": "high",   "effort": 1, "deadline": 3},
         {"name": "Daily standup prep",       "priority": "medium", "effort": 1, "deadline": 4},
