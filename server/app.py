@@ -54,10 +54,7 @@ async def get_tasks():
             "required": ["task_id"],
         },
     }
-    return Response(
-        content=json.dumps(data, indent=2),
-        media_type="application/json"
-    )
+    return Response(content=json.dumps(data, indent=2), media_type="application/json")
 
 
 async def get_grader():
@@ -98,10 +95,7 @@ async def get_grader():
         "score_range": "(0.0, 1.0) exclusive",
         "description": "Score strictly between 0 and 1",
     }
-    return Response(
-        content=json.dumps(data, indent=2),
-        media_type="application/json"
-    )
+    return Response(content=json.dumps(data, indent=2), media_type="application/json")
 
 
 async def run_baseline():
@@ -110,10 +104,7 @@ async def run_baseline():
         "message": "Run inference.py locally to get baseline scores",
         "instructions": "Set API_KEY, API_BASE_URL, MODEL_NAME env vars and run: python inference.py"
     }
-    return Response(
-        content=json.dumps(data, indent=2),
-        media_type="application/json"
-    )
+    return Response(content=json.dumps(data, indent=2), media_type="application/json")
 
 
 app.add_api_route("/tasks",    get_tasks,    methods=["GET"])
