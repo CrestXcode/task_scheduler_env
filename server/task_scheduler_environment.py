@@ -1,4 +1,7 @@
 import uuid
+import json
+import os
+import tempfile
 from openenv.core.env_server.interfaces import Environment
 from openenv.core.env_server.types import State
 
@@ -41,6 +44,7 @@ TASK_TEMPLATES = {
 }
 
 MAX_STEPS = 20
+STATE_FILE = os.path.join(tempfile.gettempdir(), "task_scheduler_state.json")
 
 
 def _clip(value: float) -> float:
@@ -48,7 +52,7 @@ def _clip(value: float) -> float:
     return round(float(min(max(value, 0.08), 0.92)), 2)
 
 
-# Module-level singleton so HTTP reset/step share the same instance
+# Module-level singleton
 _GLOBAL_ENV = None
 
 
@@ -69,6 +73,7 @@ class TaskSchedulerEnvironment(Environment):
         self._tasks_completed = 0
         self._progress = {}
         self._on_time = set()
+        self._difficulty = "easy"
 
     def _build_tasks(self, difficulty):
         return [
@@ -76,21 +81,78 @@ class TaskSchedulerEnvironment(Environment):
             for i, t in enumerate(TASK_TEMPLATES[difficulty])
         ]
 
+    def _save_state(self):
+        try:
+            state = {
+                "difficulty":       self._difficulty,
+                "current_step":     self._current_step,
+                "tasks_completed":  self._tasks_completed,
+                "progress":         self._progress,
+                "on_time":          list(self._on_time),
+                "tasks": [
+                    {
+                        "task_id":   t.task_id,
+                        "completed": t.completed,
+                    }
+                    for t in self._tasks
+                ],
+                "episode_id": self._state.episode_id,
+                "step_count": self._state.step_count,
+            }
+            with open(STATE_FILE, "w") as f:
+                json.dump(state, f)
+        except Exception:
+            pass
+
+    def _load_state(self) -> bool:
+        try:
+            if not os.path.exists(STATE_FILE):
+                return False
+            with open(STATE_FILE, "r") as f:
+                state = json.load(f)
+
+            difficulty = state.get("difficulty", "easy")
+            self._difficulty = difficulty
+            self._tasks = self._build_tasks(difficulty)
+
+            completed_map = {
+                t["task_id"]: t["completed"]
+                for t in state.get("tasks", [])
+            }
+            for t in self._tasks:
+                t.completed = completed_map.get(t.task_id, False)
+
+            self._current_step = state.get("current_step", 0)
+            self._tasks_completed = state.get("tasks_completed", 0)
+            self._progress = {
+                int(k): v for k, v in state.get("progress", {}).items()
+            }
+            self._on_time = set(state.get("on_time", []))
+            self._state = State(
+                episode_id=state.get("episode_id", str(uuid.uuid4())),
+                step_count=state.get("step_count", 0),
+            )
+            return True
+        except Exception:
+            return False
+
     def reset(self, difficulty="easy"):
+        self._difficulty = difficulty
         self._tasks = self._build_tasks(difficulty)
         self._current_step = 0
         self._tasks_completed = 0
         self._progress = {t.task_id: 0 for t in self._tasks}
         self._on_time = set()
         self._state = State(episode_id=str(uuid.uuid4()), step_count=0)
+        self._save_state()
 
         return TaskSchedulerObservation(
             done=False,
-            reward=0.08,
+            reward=0.50,
             current_step=0,
             tasks=[t.to_dict() for t in self._tasks],
             message="Episode started",
-            score=0.08,
+            score=0.50,
         )
 
     def grader(self) -> float:
@@ -100,11 +162,14 @@ class TaskSchedulerEnvironment(Environment):
         completion = self._tasks_completed / total
         on_time = len(self._on_time) / total
         raw = 0.6 * completion + 0.4 * on_time
-        # Maps raw (0.0 to 1.0) → (0.08 to 0.92)
+        # Maps (0.0, 1.0) → (0.08, 0.92)
         result = 0.08 + (raw * 0.84)
         return round(result, 2)
 
     def step(self, action: TaskSchedulerAction):
+        # Load persisted state for HTTP requests
+        self._load_state()
+
         self._current_step += 1
         self._state.step_count += 1
 
@@ -114,7 +179,7 @@ class TaskSchedulerEnvironment(Environment):
         )
 
         if task:
-            self._progress[task.task_id] += 1
+            self._progress[task.task_id] = self._progress.get(task.task_id, 0) + 1
             if self._progress[task.task_id] >= task.effort:
                 task.completed = True
                 self._tasks_completed += 1
@@ -133,6 +198,8 @@ class TaskSchedulerEnvironment(Environment):
             self._current_step >= MAX_STEPS
             or all(t.completed for t in self._tasks)
         )
+
+        self._save_state()
 
         return TaskSchedulerObservation(
             done=done,
