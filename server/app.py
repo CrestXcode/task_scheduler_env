@@ -60,10 +60,10 @@ async def get_grader():
 
             score = env.grader()
             results[difficulty] = {
-                "score": score,
-                "tasks_completed": env._tasks_completed,
-                "total_tasks": len(env._tasks),
-            }
+                  "score": round(score, 2),
+                  "tasks_completed": env._tasks_completed,
+                  "total_tasks": len(env._tasks),
+   }
         except Exception as e:
             results[difficulty] = {"score": 0.5, "error": str(e)}
 
