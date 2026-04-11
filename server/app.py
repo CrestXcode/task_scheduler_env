@@ -5,12 +5,12 @@ import uvicorn
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from openenv.core.env_server.http_server import create_app
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import Response
 from models import TaskSchedulerAction, TaskSchedulerObservation
-from server.task_scheduler_environment import TaskSchedulerEnvironment
+from server.task_scheduler_environment import TaskSchedulerEnvironment, get_global_env
 
 app = create_app(
-    TaskSchedulerEnvironment,
+    get_global_env,
     TaskSchedulerAction,
     TaskSchedulerObservation,
     env_name="task_scheduler",
@@ -66,10 +66,9 @@ async def get_grader():
         try:
             env = TaskSchedulerEnvironment()
             env.reset(difficulty=difficulty)
-            tasks = env._tasks[:]
 
             for _ in range(20):
-                incomplete = [t for t in tasks if not t.completed]
+                incomplete = [t for t in env._tasks if not t.completed]
                 if not incomplete:
                     break
                 step = env._current_step
@@ -92,7 +91,7 @@ async def get_grader():
                 "total_tasks": len(env._tasks),
             }
         except Exception as e:
-            results[difficulty] = {"score": 0.5, "error": str(e)}
+            results[difficulty] = {"score": 0.50, "error": str(e)}
 
     data = {
         "grader_results": results,

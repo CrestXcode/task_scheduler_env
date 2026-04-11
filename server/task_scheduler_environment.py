@@ -44,7 +44,19 @@ MAX_STEPS = 20
 
 
 def _clip(value: float) -> float:
+    """Strictly within (0, 1) — never touching boundaries"""
     return float(min(max(value, 0.06), 0.94))
+
+
+# Module-level singleton so HTTP reset/step share the same instance
+_GLOBAL_ENV = None
+
+
+def get_global_env():
+    global _GLOBAL_ENV
+    if _GLOBAL_ENV is None:
+        _GLOBAL_ENV = TaskSchedulerEnvironment()
+    return _GLOBAL_ENV
 
 
 class TaskSchedulerEnvironment(Environment):
@@ -74,24 +86,22 @@ class TaskSchedulerEnvironment(Environment):
 
         return TaskSchedulerObservation(
             done=False,
-            reward=0.05,
+            reward=0.06,
             current_step=0,
             tasks=[t.to_dict() for t in self._tasks],
             message="Episode started",
-            score=0.05,
+            score=0.06,
         )
 
-
     def grader(self) -> float:
-       total = len(self._tasks)
-       if total == 0:
-          return 0.50
-       completion = self._tasks_completed / total
-       on_time = len(self._on_time) / total
-       raw = 0.6 * completion + 0.4 * on_time
-       # Add small noise to prevent exact boundary values
-       result = 0.06 + (raw * 0.88)
-       return round(result, 2)
+        total = len(self._tasks)
+        if total == 0:
+            return 0.50
+        completion = self._tasks_completed / total
+        on_time = len(self._on_time) / total
+        raw = 0.6 * completion + 0.4 * on_time
+        result = 0.06 + (raw * 0.88)
+        return round(result, 2)
 
     def step(self, action: TaskSchedulerAction):
         self._current_step += 1
@@ -116,7 +126,7 @@ class TaskSchedulerEnvironment(Environment):
                 ratio = self._progress[task.task_id] / task.effort
                 reward = _clip(0.1 + 0.3 * ratio)
         else:
-            reward = 0.05
+            reward = 0.06
 
         done = (
             self._current_step >= MAX_STEPS
@@ -129,7 +139,7 @@ class TaskSchedulerEnvironment(Environment):
             current_step=self._current_step,
             tasks=[t.to_dict() for t in self._tasks],
             message="ok",
-            score=self.grader(),
+            score=_clip(self.grader()),
         )
 
     @property
