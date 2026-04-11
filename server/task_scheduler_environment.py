@@ -49,7 +49,7 @@ STATE_FILE = os.path.join(tempfile.gettempdir(), "task_scheduler_state.json")
 
 def _clip(value: float) -> float:
     """Clamp to (0.15, 0.85) — well inside (0, 1) exclusive."""
-    return round(float(min(max(value, 0.15), 0.85)), 2)
+    return round(float(min(max(value, 0.16), 0.75)), 2)
 
 
 _GLOBAL_ENV = None
@@ -151,7 +151,7 @@ class TaskSchedulerEnvironment(Environment):
         on_time    = len(self._on_time) / total
         raw        = 0.6 * completion + 0.4 * on_time
         # Maps [0, 1] → [0.20, 0.80] — mathematically impossible to hit 0 or 1
-        return round(0.20 + (raw * 0.60), 2)
+        return round(0.25 + (raw * 0.50), 2)
 
     def step(self, action: TaskSchedulerAction, **kwargs):
         self._load_state()
@@ -170,15 +170,15 @@ class TaskSchedulerEnvironment(Environment):
                 task.completed = True
                 self._tasks_completed += 1
                 if self._current_step <= task.deadline:
-                    reward = 0.80
+                    reward = 0.75
                     self._on_time.add(task.task_id)
                 else:
-                    reward = 0.30
+                    reward = 0.28
             else:
                 ratio  = self._progress[task.task_id] / task.effort
-                reward = _clip(0.20 + 0.30 * ratio)
+                reward = _clip(0.20 + 0.28 * ratio)
         else:
-            reward = 0.15
+            reward = 0.16
 
         done = (
             self._current_step >= MAX_STEPS
