@@ -21,7 +21,7 @@ class Task:
             "effort":        self.effort,
             "deadline":      self.deadline,
             "completed":     self.completed,
-            "work_progress": work_done,   # ← actual progress, not always 0
+            "work_progress": work_done,
         }
 
 
@@ -30,9 +30,9 @@ class TaskSchedulerAction(Action):
 
 
 class TaskSchedulerObservation(Observation):
-    done:         bool          = False
-    reward:       Optional[float] = 0.1   # ← default 0.1 not 0.0
-    current_step: int           = 0
-    tasks:        List[dict]    = []
-    message:      str           = ""
-    score:        float         = 0.05    # ← default 0.05 not 0.0
+    done:         bool            = False
+    reward:       Optional[float] = 0.50
+    current_step: int             = 0
+    tasks:        List[dict]      = []
+    message:      str             = ""
+    score:        float           = 0.50
