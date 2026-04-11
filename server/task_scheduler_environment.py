@@ -44,7 +44,7 @@ MAX_STEPS = 20
 
 
 def _clip(value: float) -> float:
-    return float(min(max(value, 0.05), 0.95))
+    return float(min(max(value, 0.06), 0.94))
 
 
 class TaskSchedulerEnvironment(Environment):
@@ -81,14 +81,17 @@ class TaskSchedulerEnvironment(Environment):
             score=0.05,
         )
 
+
     def grader(self) -> float:
-        total = len(self._tasks)
-        if total == 0:
-            return 0.5
-        completion = self._tasks_completed / total
-        on_time = len(self._on_time) / total
-        raw = 0.6 * completion + 0.4 * on_time
-        return _clip(raw)
+       total = len(self._tasks)
+       if total == 0:
+          return 0.50
+       completion = self._tasks_completed / total
+       on_time = len(self._on_time) / total
+       raw = 0.6 * completion + 0.4 * on_time
+       # Add small noise to prevent exact boundary values
+       result = 0.06 + (raw * 0.88)
+       return round(result, 2)
 
     def step(self, action: TaskSchedulerAction):
         self._current_step += 1
