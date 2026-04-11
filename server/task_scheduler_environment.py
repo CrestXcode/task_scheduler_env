@@ -44,8 +44,8 @@ MAX_STEPS = 20
 
 
 def _clip(value: float) -> float:
-    """Strictly within (0.07, 0.93) — safely away from both boundaries"""
-    return round(float(min(max(value, 0.07), 0.93)), 2)
+    """Strictly within (0.08, 0.92) — safely away from 0 and 1"""
+    return round(float(min(max(value, 0.08), 0.92)), 2)
 
 
 # Module-level singleton so HTTP reset/step share the same instance
@@ -86,11 +86,11 @@ class TaskSchedulerEnvironment(Environment):
 
         return TaskSchedulerObservation(
             done=False,
-            reward=0.07,
+            reward=0.08,
             current_step=0,
             tasks=[t.to_dict() for t in self._tasks],
             message="Episode started",
-            score=0.07,
+            score=0.08,
         )
 
     def grader(self) -> float:
@@ -100,8 +100,8 @@ class TaskSchedulerEnvironment(Environment):
         completion = self._tasks_completed / total
         on_time = len(self._on_time) / total
         raw = 0.6 * completion + 0.4 * on_time
-        # Maps raw (0.0 to 1.0) → (0.07 to 0.93)
-        result = 0.07 + (raw * 0.86)
+        # Maps raw (0.0 to 1.0) → (0.08 to 0.92)
+        result = 0.08 + (raw * 0.84)
         return round(result, 2)
 
     def step(self, action: TaskSchedulerAction):
@@ -127,7 +127,7 @@ class TaskSchedulerEnvironment(Environment):
                 ratio = self._progress[task.task_id] / task.effort
                 reward = _clip(0.1 + 0.3 * ratio)
         else:
-            reward = 0.07
+            reward = 0.08
 
         done = (
             self._current_step >= MAX_STEPS
