@@ -1,10 +1,11 @@
 import sys
 import os
+import json
 import uvicorn
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from openenv.core.env_server.http_server import create_app
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from models import TaskSchedulerAction, TaskSchedulerObservation
 from server.task_scheduler_environment import TaskSchedulerEnvironment
 
@@ -18,18 +19,45 @@ app = create_app(
 
 
 async def get_tasks():
-    return JSONResponse({
+    data = {
         "tasks": [
-            {"id": "easy",   "name": "Easy Scheduling",   "description": "5 tasks, generous deadlines.", "difficulty": "easy",   "max_steps": 20},
-            {"id": "medium", "name": "Medium Scheduling", "description": "7 tasks, tighter deadlines.",  "difficulty": "medium", "max_steps": 20},
-            {"id": "hard",   "name": "Hard Scheduling",   "description": "10 tasks, tight deadlines.",   "difficulty": "hard",   "max_steps": 20},
+            {
+                "id": "easy",
+                "name": "Easy Scheduling",
+                "description": "6 tasks with generous deadlines. All effort=1.",
+                "difficulty": "easy",
+                "max_steps": 20
+            },
+            {
+                "id": "medium",
+                "name": "Medium Scheduling",
+                "description": "7 tasks with tighter deadlines and varying effort.",
+                "difficulty": "medium",
+                "max_steps": 20
+            },
+            {
+                "id": "hard",
+                "name": "Hard Scheduling",
+                "description": "10 tasks with tight deadlines and high effort.",
+                "difficulty": "hard",
+                "max_steps": 20
+            },
         ],
         "action_schema": {
             "type": "object",
-            "properties": {"task_id": {"type": "integer", "description": "ID of the task to work on"}},
+            "properties": {
+                "task_id": {
+                    "type": "integer",
+                    "description": "ID of the task to work on this step"
+                }
+            },
             "required": ["task_id"],
         },
-    })
+    }
+    return Response(
+        content=json.dumps(data, indent=2),
+        media_type="application/json"
+    )
 
 
 async def get_grader():
@@ -53,32 +81,40 @@ async def get_grader():
                         t.effort,
                     )
                 )[0]
-                from models import TaskSchedulerAction
                 result = env.step(TaskSchedulerAction(task_id=best.task_id))
                 if result.done:
                     break
 
             score = env.grader()
             results[difficulty] = {
-                  "score": round(score, 2),
-                  "tasks_completed": env._tasks_completed,
-                  "total_tasks": len(env._tasks),
-   }
+                "score": round(score, 2),
+                "tasks_completed": env._tasks_completed,
+                "total_tasks": len(env._tasks),
+            }
         except Exception as e:
             results[difficulty] = {"score": 0.5, "error": str(e)}
 
-    return JSONResponse({
+    data = {
         "grader_results": results,
         "score_range": "(0.0, 1.0) exclusive",
         "description": "Score strictly between 0 and 1",
-    })
+    }
+    return Response(
+        content=json.dumps(data, indent=2),
+        media_type="application/json"
+    )
 
 
 async def run_baseline():
-    return JSONResponse({
+    data = {
         "status": "ok",
         "message": "Run inference.py locally to get baseline scores",
-    })
+        "instructions": "Set API_KEY, API_BASE_URL, MODEL_NAME env vars and run: python inference.py"
+    }
+    return Response(
+        content=json.dumps(data, indent=2),
+        media_type="application/json"
+    )
 
 
 app.add_api_route("/tasks",    get_tasks,    methods=["GET"])
