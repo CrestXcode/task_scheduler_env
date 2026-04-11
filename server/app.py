@@ -62,7 +62,13 @@ async def get_grader():
     for difficulty in ["easy", "medium", "hard"]:
         try:
             env = TaskSchedulerEnvironment()
-            env.reset(difficulty=difficulty)
+            # Directly set state without triggering _save_state
+            env._difficulty      = difficulty
+            env._tasks           = env._build_tasks(difficulty)
+            env._current_step    = 0
+            env._tasks_completed = 0
+            env._progress        = {t.task_id: 0 for t in env._tasks}
+            env._on_time         = set()
 
             for _ in range(20):
                 incomplete = [t for t in env._tasks if not t.completed]
@@ -77,8 +83,15 @@ async def get_grader():
                         t.effort,
                     )
                 )[0]
-                result = env.step(TaskSchedulerAction(task_id=best.task_id))
-                if result.done:
+                # Directly step without loading/saving file state
+                env._current_step += 1
+                env._progress[best.task_id] = env._progress.get(best.task_id, 0) + 1
+                if env._progress[best.task_id] >= best.effort:
+                    best.completed = True
+                    env._tasks_completed += 1
+                    if env._current_step <= best.deadline:
+                        env._on_time.add(best.task_id)
+                if all(t.completed for t in env._tasks) or env._current_step >= 20:
                     break
 
             score = env.grader()

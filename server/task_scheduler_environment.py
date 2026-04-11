@@ -154,7 +154,6 @@ class TaskSchedulerEnvironment(Environment):
         return round(0.27 + (raw * 0.46), 2)
 
     def step(self, action: TaskSchedulerAction, **kwargs):
-        self._load_state()
 
         self._current_step     += 1
         self._state.step_count += 1
