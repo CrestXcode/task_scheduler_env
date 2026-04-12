@@ -96,7 +96,7 @@ async def get_grader():
 
             score = env.grader()
             results[difficulty] = {
-                "score": round(score, 2),
+                "score": round(score, 3),
                 "tasks_completed": env._tasks_completed,
                 "total_tasks": len(env._tasks),
             }
