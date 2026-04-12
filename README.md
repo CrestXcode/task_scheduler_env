@@ -24,9 +24,9 @@ Built with [OpenEnv](https://github.com/meta-pytorch/OpenEnv) — the open-sourc
 The agent receives a board of workplace tasks, each with a name, priority level, effort requirement, and deadline. At each step, the agent picks one task to work on. The environment rewards smart prioritisation and penalises missed deadlines.
 
 **3 difficulty levels:**
-- **Easy** — 5 tasks, generous deadlines, effort=1 each
-- **Medium** — 8 tasks, tighter deadlines, varying effort (1-3 steps)
-- **Hard** — 10 tasks, tight deadlines, urgent task injected at step 3
+- **Easy** — 6 tasks, generous deadlines, effort=1 each
+- **Medium** — 7 tasks, tighter deadlines, varying effort (1-2 steps)
+- **Hard** — 10 tasks, tight deadlines, high effort requirements
 
 ## Quick Start
 ```python
@@ -57,48 +57,46 @@ class TaskSchedulerObservation(Observation):
     current_step: int           # Current time step
     tasks: List[dict]           # All tasks and their status
     message: str                # Feedback message
-    score: float                # Running score 0.0-1.0
+    score: float                # Running score (0.0, 1.0) exclusive
 ```
 
 Each task in the list looks like:
 ```json
 {
     "task_id": 0,
-    "name": "Reply to emails",
+    "name": "Email",
     "priority": "high",
     "effort": 1,
-    "deadline": 4,
-    "completed": false
+    "deadline": 3,
+    "completed": false,
+    "work_progress": 0
 }
 ```
 
 ## Tasks
 
-### Easy — 5 tasks, generous deadlines
+### Easy — 6 tasks, generous deadlines
 All tasks have effort=1 (complete in one step). Deadlines are generous.
 Agent must learn to prioritise high priority tasks first.
 
-### Medium — 8 tasks, tighter deadlines
-Tasks have varying effort (1-3 steps). Deadlines are tighter.
+### Medium — 7 tasks, tighter deadlines
+Tasks have varying effort (1-2 steps). Deadlines are tighter.
 Agent must balance effort vs deadline vs priority.
 
-### Hard — 10 tasks + urgent injection
-Starts with 10 tasks. At step 3, an urgent high-priority task is injected
-with a short deadline. Agent must dynamically reprioritise.
+### Hard — 10 tasks, tight deadlines
+High effort tasks (1-3 steps) with tight deadlines across 20 steps.
+Agent must dynamically prioritise and avoid switching tasks unnecessarily.
 
 ## Reward Function
 
 | Event | Reward |
 |---|---|
-| Complete task on time | +1.0 |
-| Progress on task (partial) | +0.1 per step |
-| Working on high priority task | +0.1 bonus |
-| Complete task late | +0.3 |
-| Miss deadline | -0.3 |
-| Ignore urgent task (deadline ≤ 2 steps) | -0.1 per step |
-| Invalid task_id | -0.2 |
+| Complete task on time | +0.73 |
+| Complete task late | +0.28 |
+| Partial progress on task | +0.20 to +0.39 |
+| Invalid task_id | +0.16 |
 
-Final score = tasks completed / total tasks (0.0 to 1.0)
+Final score = weighted combination of completion rate and on-time rate, strictly in (0.0, 1.0).
 
 ## API Endpoints
 
@@ -108,8 +106,8 @@ Final score = tasks completed / total tasks (0.0 to 1.0)
 | `/step` | POST | Take an action |
 | `/state` | GET | Get current state |
 | `/tasks` | GET | List all tasks + action schema |
-| `/grader` | GET | Grader info and criteria |
-| `/baseline` | POST | Run baseline inference |
+| `/grader` | GET | Run grader and return scores |
+| `/baseline` | POST | Baseline info |
 | `/health` | GET | Health check |
 | `/docs` | GET | API documentation |
 
@@ -117,11 +115,11 @@ Final score = tasks completed / total tasks (0.0 to 1.0)
 
 Run with Groq LLaMA 3.1 8B Instant as the agent:
 
-| Difficulty | Success | Steps |
-|---|---|---|
-| Easy | true | 5 |
-| Medium | false | 9 |
-| Hard | false | 6 |
+| Difficulty | Score | Tasks Completed | Steps |
+|---|---|---|---|
+| Easy | 0.932 | 6/6 | 6 |
+| Medium | 0.828 | 7/7 | 12 |
+| Hard | 0.520 | 9/10 | 20 |
 
 ## Setup & Local Development
 
@@ -142,25 +140,21 @@ uv run server
 ### Run with Docker
 
 ```bash
-docker build -t task-scheduler-env -f server/Dockerfile .
-docker run -p 8000:8000 -e GROQ_API_KEY=your_key task-scheduler-env
+docker build -t task-scheduler-env .
+docker run -p 8000:8000 task-scheduler-env
 ```
 
 ## Project Structure
 
-```
 task_scheduler/
 ├── models.py                          # Pydantic Action, Observation types
-├── client.py                          # TaskSchedulerEnv client
-├── inference.py                       # Baseline inference script
+├── inference.py                       # LLM-powered baseline agent
 ├── openenv.yaml                       # OpenEnv manifest
-├── Dockerfile                         # Container definition (root, for HuggingFace)
+├── Dockerfile                         # Container definition
 ├── README.md                          # This file
 └── server/
-    ├── task_scheduler_environment.py  # Core game logic
-    ├── app.py                         # FastAPI server + endpoints
-    └── Dockerfile                     # Container definition (local)
-```
+├── task_scheduler_environment.py  # Core environment logic
+└── app.py                         # FastAPI server + endpoints
 
 ## Environment Motivation
 
@@ -169,3 +163,4 @@ project management systems, and autonomous assistants. This environment provides
 a clean, standardised training ground for agents to learn deadline-aware,
 priority-sensitive scheduling behaviour — directly applicable to real-world
 AI assistant development.
+
