@@ -12,7 +12,7 @@ OPENAI_API_KEY = os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY") or os.geten
 
 client = OpenAI(api_key=OPENAI_API_KEY, base_url=API_BASE_URL)
 
-BASE_URL = os.getenv("TASK_SCHEDULER_URL", "https://kashish014-task-scheduler-env.hf.space")
+BASE_URL = os.getenv("TASK_SCHEDULER_URL", "http://localhost:8000")
 
 TASKS = [
     {"name": "easy-scheduling",   "difficulty": "easy"},
