@@ -48,8 +48,7 @@ STATE_FILE = os.path.join(tempfile.gettempdir(), "task_scheduler_state.json")
 
 
 def _clip(value: float) -> float:
-    """Clamp to (0.15, 0.85) — well inside (0, 1) exclusive."""
-    return round(float(min(max(value, 0.16), 0.73)), 2)
+    return round(float(min(max(value, 0.001), 0.999)), 3)
 
 
 _GLOBAL_ENV = None
@@ -146,12 +145,13 @@ class TaskSchedulerEnvironment(Environment):
     def grader(self) -> float:
         total = len(self._tasks)
         if total == 0:
-            return 0.50
+           return 0.500
         completion = self._tasks_completed / total
         on_time    = len(self._on_time) / total
         raw        = 0.6 * completion + 0.4 * on_time
-        # Maps [0, 1] → [0.20, 0.80] — mathematically impossible to hit 0 or 1
-        return round(0.27 + (raw * 0.46), 2)
+        # Maps [0,1] → [0.001, 0.999]
+        result = 0.001 + (raw * 0.998)
+        return round(result, 3)
 
     def step(self, action: TaskSchedulerAction, **kwargs):
 

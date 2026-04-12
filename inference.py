@@ -51,7 +51,7 @@ def log_step(step: int, action: str, reward: float, done: bool, error: Optional[
 def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
     rewards_str = ",".join(f"{r:.2f}" for r in rewards) if rewards else "0.51"
     print(
-        f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}",
+        f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={rewards_str}",
         flush=True,
     )
 
@@ -156,7 +156,7 @@ def run_episode(task: dict) -> None:
 
                 result     = env.step({"task_id": task_id})
                 raw_reward = result.reward if result.reward is not None else 0.51
-                reward     = round(min(max(float(raw_reward), 0.01), 0.99), 2)
+                reward = round(min(max(float(raw_reward), 0.001), 0.999), 3)
 
                 rewards.append(reward)
                 steps_taken = step
@@ -170,7 +170,7 @@ def run_episode(task: dict) -> None:
 
         obs_dict  = obs if isinstance(obs, dict) else (vars(obs) if obs else {})
         raw_score = float(obs_dict.get("score", 0.51))
-        score     = round(min(max(raw_score, 0.01), 0.99), 2)
+        score = round(min(max(raw_score, 0.001), 0.999), 3)
         success   = score >= SUCCESS_SCORE_THRESHOLD
 
     except Exception as e:
