@@ -64,19 +64,36 @@ def heuristic(obs_dict: dict, last=None) -> int:
     for t in tasks:
         if t.get("completed"):
             continue
+        
         time_left = t["deadline"] - step
-        if time_left <= 0:
-            continue
         effort    = t["effort"]
         progress  = t.get("work_progress", 0)
         remaining = effort - progress
+        
+        # Skip if mathematically impossible to finish
+        if remaining > time_left and time_left <= 0:
+            continue
 
-        score = (
-            (100 if t["priority"] == "high" else 50 if t["priority"] == "medium" else 10)
-            + 200 / (time_left + 1)
-            + (300 if time_left <= remaining else 0)
-            + (80  if last == t["task_id"] else 0)
-        )
+        priority_score = {"high": 1000, "medium": 500, "low": 100}[t["priority"]]
+        
+        # CRITICAL: deadline about to be missed
+        urgency = 0
+        if time_left <= remaining:
+            urgency = 5000  # drop everything, do this now
+        elif time_left <= remaining + 1:
+            urgency = 2000
+            
+        # Continuity bonus — finish what you started
+        continuity = 800 if progress > 0 else 0
+        
+        # Prefer tasks we were just working on
+        momentum = 400 if last == t["task_id"] else 0
+        
+        # Deadline proximity
+        deadline_pressure = 300 / (time_left + 1)
+
+        score = priority_score + urgency + continuity + momentum + deadline_pressure
+        
         if score > best_score:
             best_score = score
             best = t
