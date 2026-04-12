@@ -160,10 +160,10 @@ Reply with ONLY the integer task_id. Nothing else."""
 
     rewards_str = ",".join(f"{r:.2f}" for r in rewards) if rewards else "0.50"
     print(
-        f"[END] success={str(success).lower()} steps={step_num} "
-        f"rewards={rewards_str}",
-        flush=True
-    )
+    f"[END] success={str(success).lower()} steps={step_num} "
+    f"score={score:.2f} rewards={rewards_str}",
+    flush=True
+)
 
 
 def main():
