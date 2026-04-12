@@ -1,18 +1,22 @@
 import os
 import json
+from typing import List, Optional
 from dotenv import load_dotenv
 from openai import OpenAI
 from openenv.core import GenericEnvClient
 
 load_dotenv()
 
-API_BASE_URL   = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
-MODEL_NAME     = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
-OPENAI_API_KEY = os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY", "")
+API_KEY      = os.getenv("API_KEY") or os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY", "")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
+MODEL_NAME   = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
 
-client = OpenAI(api_key=OPENAI_API_KEY, base_url=API_BASE_URL)
+BASE_URL  = os.getenv("TASK_SCHEDULER_URL", "http://localhost:8000")
+MAX_STEPS = 20
 
-BASE_URL = os.getenv("TASK_SCHEDULER_URL", "http://localhost:8000")
+SUCCESS_SCORE_THRESHOLD = 0.5
+
+client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
 
 TASKS = [
     {"name": "easy-scheduling",   "difficulty": "easy"},
@@ -20,16 +24,26 @@ TASKS = [
     {"name": "hard-scheduling",   "difficulty": "hard"},
 ]
 
-MAX_STEPS = 20
+
+def log_start(task: str, env: str, model: str) -> None:
+    print(f"[START] task={task} env={env} model={model}", flush=True)
 
 
-def _safe_reward(value) -> float:
-    """Clamp any reward received from the environment to strictly (0.15, 0.85)."""
-    try:
-        v = float(value) if value is not None else 0.50
-    except (TypeError, ValueError):
-        v = 0.50
-    return round(min(max(v, 0.15), 0.85), 2)
+def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str]) -> None:
+    error_val = error if error else "null"
+    done_val  = str(done).lower()
+    print(
+        f"[STEP] step={step} action={action} reward={reward:.2f} done={done_val} error={error_val}",
+        flush=True,
+    )
+
+
+def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(
+        f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}",
+        flush=True,
+    )
 
 
 def heuristic(obs_dict: dict, last=None) -> int:
@@ -65,31 +79,48 @@ def heuristic(obs_dict: dict, last=None) -> int:
     return best["task_id"]
 
 
-def call_llm(prompt: str, incomplete: list) -> int:
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=10,
-        temperature=0.0,
-    )
-    raw     = response.choices[0].message.content.strip()
-    digits  = ''.join(filter(str.isdigit, raw))
-    task_id = int(digits) if digits else incomplete[0]["task_id"]
-    valid_ids = [t["task_id"] for t in incomplete]
-    return task_id if task_id in valid_ids else incomplete[0]["task_id"]
+def get_action(obs_dict: dict, incomplete: list, last=None) -> tuple:
+    prompt = f"""You are an AI agent managing workplace tasks efficiently.
+Step: {obs_dict.get('current_step', 0)} / {MAX_STEPS}
+
+Incomplete tasks:
+{json.dumps(incomplete, indent=2)}
+
+Strategy:
+- HIGH priority tasks first
+- Among same priority, pick closest deadline
+- If work_progress > 0, prefer finishing that task first
+
+Reply with ONLY the integer task_id. Nothing else."""
+
+    try:
+        completion = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=10,
+            temperature=0.0,
+        )
+        raw     = (completion.choices[0].message.content or "").strip()
+        digits  = ''.join(filter(str.isdigit, raw))
+        task_id = int(digits) if digits else incomplete[0]["task_id"]
+        valid_ids = [t["task_id"] for t in incomplete]
+        return (task_id if task_id in valid_ids else incomplete[0]["task_id"]), None
+    except Exception as e:
+        return heuristic(obs_dict, last), str(e)[:50]
 
 
 def run_episode(task: dict) -> None:
     task_name  = task["name"]
     difficulty = task["difficulty"]
 
-    print(f"[START] task={task_name} env=task-scheduler model={MODEL_NAME}", flush=True)
+    rewards     = []
+    steps_taken = 0
+    score       = 0.50
+    success     = False
+    last        = None
+    obs         = None
 
-    step_num = 0
-    rewards  = []
-    success  = False
-    last     = None
-    obs      = None
+    log_start(task=task_name, env="task-scheduler", model=MODEL_NAME)
 
     try:
         with GenericEnvClient(base_url=BASE_URL).sync() as env:
@@ -97,7 +128,7 @@ def run_episode(task: dict) -> None:
             obs    = result.observation
             done   = result.done
 
-            for step_num in range(1, MAX_STEPS + 1):
+            for step in range(1, MAX_STEPS + 1):
                 if done:
                     break
 
@@ -109,61 +140,38 @@ def run_episode(task: dict) -> None:
                     success = True
                     break
 
-                prompt = f"""You are an AI agent managing workplace tasks efficiently.
-Step: {obs_dict.get('current_step', 0)} / {MAX_STEPS}
+                task_id, error = get_action(obs_dict, incomplete, last)
+                last           = task_id
+                action_str     = f"task_id={task_id}"
 
-Incomplete tasks:
-{json.dumps(incomplete, indent=2)}
+                result = env.step({"task_id": task_id})
 
-Strategy:
-- HIGH priority tasks first
-- Among same priority, pick closest deadline
-- If a task has work_progress > 0, prefer finishing it before switching
-- Avoid unnecessary task switching
+                raw_reward = result.reward if result.reward is not None else 0.50
+                reward     = float(raw_reward)
+                # clamp strictly between 0 and 1
+                reward     = round(min(max(reward, 0.01), 0.99), 2)
 
-Reply with ONLY the integer task_id. Nothing else."""
-
-                error_str = "null"
-                try:
-                    task_id = call_llm(prompt, incomplete)
-                except Exception as e:
-                    task_id   = heuristic(obs_dict, last)
-                    error_str = str(e)[:50]
-
-                last       = task_id
-                action_str = f"task_id={task_id}"
-                result     = env.step({"task_id": task_id})
-
-                reward = _safe_reward(result.reward)
                 rewards.append(reward)
-                obs  = result.observation
-                done = result.done
+                steps_taken = step
+                obs         = result.observation
+                done        = result.done
 
-                print(
-                    f"[STEP] step={step_num} action={action_str} "
-                    f"reward={reward:.2f} done={str(done).lower()} "
-                    f"error={error_str}",
-                    flush=True
-                )
+                log_step(step=step, action=action_str, reward=reward, done=done, error=error)
 
                 if done:
                     break
 
+        obs_dict = obs if isinstance(obs, dict) else (vars(obs) if obs else {})
+        raw_score = float(obs_dict.get("score", 0.50))
+        score     = round(min(max(raw_score, 0.01), 0.99), 2)
+        success   = score >= SUCCESS_SCORE_THRESHOLD
+
     except Exception as e:
         print(f"ERROR: {e}", flush=True)
+        score   = 0.50
         success = False
 
-    obs_dict  = obs if isinstance(obs, dict) else (vars(obs) if obs else {})
-    raw_score = float(obs_dict.get("score", 0.50))
-    score     = round(min(max(raw_score, 0.15), 0.85), 2)
-    success   = score > 0.50
-
-    rewards_str = ",".join(f"{r:.2f}" for r in rewards) if rewards else "0.50"
-    print(
-    f"[END] success={str(success).lower()} steps={step_num} "
-    f"score={score:.2f} rewards={rewards_str}",
-    flush=True
-)
+    log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
 
 def main():
