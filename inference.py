@@ -1,5 +1,7 @@
 import os
 import json
+import time
+import urllib.request
 from typing import List, Optional
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -10,10 +12,8 @@ load_dotenv()
 API_KEY      = os.getenv("API_KEY") or os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY", "")
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
 MODEL_NAME   = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
-
-BASE_URL  = os.getenv("TASK_SCHEDULER_URL", "http://localhost:8000")
-MAX_STEPS = 20
-
+BASE_URL     = os.getenv("TASK_SCHEDULER_URL", "http://localhost:8000")
+MAX_STEPS    = 20
 SUCCESS_SCORE_THRESHOLD = 0.5
 
 client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
@@ -23,6 +23,20 @@ TASKS = [
     {"name": "medium-scheduling", "difficulty": "medium"},
     {"name": "hard-scheduling",   "difficulty": "hard"},
 ]
+
+
+def wait_for_server(url: str, timeout: int = 60) -> None:
+    """Wait for server to be ready before running inference."""
+    print(f"[INFO] Waiting for server at {url}...", flush=True)
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            urllib.request.urlopen(f"{url}/health", timeout=2)
+            print(f"[INFO] Server is ready.", flush=True)
+            return
+        except Exception:
+            time.sleep(1)
+    print(f"[INFO] Server wait timeout — proceeding anyway.", flush=True)
 
 
 def log_start(task: str, env: str, model: str) -> None:
@@ -39,7 +53,7 @@ def log_step(step: int, action: str, reward: float, done: bool, error: Optional[
 
 
 def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
-    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards) if rewards else "0.50"
     print(
         f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}",
         flush=True,
@@ -79,7 +93,7 @@ def heuristic(obs_dict: dict, last=None) -> int:
     return best["task_id"]
 
 
-def get_action(obs_dict: dict, incomplete: list, last=None) -> tuple:
+def get_action(obs_dict: dict, incomplete: list, last=None):
     prompt = f"""You are an AI agent managing workplace tasks efficiently.
 Step: {obs_dict.get('current_step', 0)} / {MAX_STEPS}
 
@@ -100,9 +114,9 @@ Reply with ONLY the integer task_id. Nothing else."""
             max_tokens=10,
             temperature=0.0,
         )
-        raw     = (completion.choices[0].message.content or "").strip()
-        digits  = ''.join(filter(str.isdigit, raw))
-        task_id = int(digits) if digits else incomplete[0]["task_id"]
+        raw       = (completion.choices[0].message.content or "").strip()
+        digits    = ''.join(filter(str.isdigit, raw))
+        task_id   = int(digits) if digits else incomplete[0]["task_id"]
         valid_ids = [t["task_id"] for t in incomplete]
         return (task_id if task_id in valid_ids else incomplete[0]["task_id"]), None
     except Exception as e:
@@ -144,12 +158,9 @@ def run_episode(task: dict) -> None:
                 last           = task_id
                 action_str     = f"task_id={task_id}"
 
-                result = env.step({"task_id": task_id})
-
+                result     = env.step({"task_id": task_id})
                 raw_reward = result.reward if result.reward is not None else 0.50
-                reward     = float(raw_reward)
-                # clamp strictly between 0 and 1
-                reward     = round(min(max(reward, 0.01), 0.99), 2)
+                reward     = round(min(max(float(raw_reward), 0.01), 0.99), 2)
 
                 rewards.append(reward)
                 steps_taken = step
@@ -161,7 +172,7 @@ def run_episode(task: dict) -> None:
                 if done:
                     break
 
-        obs_dict = obs if isinstance(obs, dict) else (vars(obs) if obs else {})
+        obs_dict  = obs if isinstance(obs, dict) else (vars(obs) if obs else {})
         raw_score = float(obs_dict.get("score", 0.50))
         score     = round(min(max(raw_score, 0.01), 0.99), 2)
         success   = score >= SUCCESS_SCORE_THRESHOLD
@@ -175,6 +186,7 @@ def run_episode(task: dict) -> None:
 
 
 def main():
+    wait_for_server(BASE_URL)
     for task in TASKS:
         run_episode(task)
 
