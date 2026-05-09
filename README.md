@@ -145,7 +145,7 @@ docker run -p 8000:8000 task-scheduler-env
 ```
 
 ## Project Structure
-
+```
 task_scheduler/
 ├── models.py                          # Pydantic Action, Observation types
 ├── inference.py                       # LLM-powered baseline agent
@@ -155,6 +155,7 @@ task_scheduler/
 └── server/
 ├── task_scheduler_environment.py  # Core environment logic
 └── app.py                         # FastAPI server + endpoints
+```
 
 ## Environment Motivation
 
